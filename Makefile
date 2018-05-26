@@ -1,9 +1,21 @@
+.SUFFIXES:
+.PHONY: all tools clean
+.SECONDEXPANSION:
+.PRECIOUS:
+.SECONDARY:
+
 all: tetris10.gb
+tools: tools/scan_includes
+tools/%: tools/%.c
+	$(CC) -O3 $< -o $@
 
 %.2bpp: %.png
-	rgbgfx -o $@ $<
+	rgbgfx -d 2 -o $@ $<
 
-main10.o: main.asm bank_*.asm
+%.1bpp: %.png
+	rgbgfx -d 1 -o $@ $<
+
+main10.o: main.asm $(shell tools/scan_includes main.asm)
 	rgbasm -o main10.o main.asm
 
 tetris10.gb: main10.o

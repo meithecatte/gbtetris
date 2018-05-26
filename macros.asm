@@ -11,3 +11,9 @@ assert: MACRO
 		endc
 	endc
 ENDM
+
+length: MACRO
+	ld \1, \2_End - \2
+ENDM
+
+tile EQUS "+ 16 *"

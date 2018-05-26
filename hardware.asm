@@ -37,9 +37,9 @@ ENDM
 
 _HW          EQU $FF00
 
-_VRAM        EQU $8000 ; $8000->$9FFF
-_SCRN0       EQU $9800 ; $9800->$9BFF
-_SCRN1       EQU $9C00 ; $9C00->$9FFF
+vBGTiles     EQU $8000 ; $8000->$9FFF
+vBGMapA      EQU $9800 ; $9800->$9BFF
+vBGMapB      EQU $9C00 ; $9C00->$9FFF
 _SRAM        EQU $A000 ; $A000->$BFFF
 _RAM         EQU $C000 ; $C000->$DFFF
 _OAMRAM      EQU $FE00 ; $FE00->$FE9F
@@ -387,7 +387,11 @@ IEF_TIMER  EQU %00000100 ; Timer Overflow
 IEF_LCDC   EQU %00000010 ; LCDC (see STAT)
 IEF_VBLANK EQU %00000001 ; V-Blank
 
-
+IEF_HILO_BIT   EQU 4
+IEF_SERIAL_BIT EQU 3
+IEF_TIMER_BIT  EQU 2
+IEF_LCDC_BIT   EQU 1
+IEF_VBLANK_BIT EQU 0
 
 
 ;***************************************************************************
