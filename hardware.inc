@@ -86,7 +86,11 @@ OAMB_BANK1      EQU 3 ; Bank number; 0,1 (GBC)
 ; -- Register for reading joy pad info.    (R/W)
 ; --
 rP1 EQU $FF00
+rJOYP EQU rP1
 
+JOYP_BUTTONS  EQU %00010000
+JOYP_DPAD     EQU %00100000
+JOYP_DESELECT EQU %00110000
 P1F_5 EQU %00100000 ; P15 out port
 P1F_4 EQU %00010000 ; P14 out port
 P1F_3 EQU %00001000 ; P13 in port
@@ -105,6 +109,9 @@ rSB EQU $FF01
 ; -- Serial I/O Control (R/W)
 ; --
 rSC EQU $FF02
+SC_RQ     EQU %10000000
+SC_FAST   EQU %00000010
+SC_MASTER EQU %00000001
 
 ; --
 ; -- DIV ($FF04)
@@ -400,6 +407,7 @@ IEF_VBLANK EQU %00000001 ; V-Blank
 ; --
 rNR50 EQU $FF24
 rAUDVOL EQU rNR50
+AUDVOL_MAX EQU %01110111
 
 
 ; --
@@ -417,21 +425,21 @@ rAUDVOL EQU rNR50
 ; --
 rNR51 EQU $FF25
 rAUDTERM EQU rNR51
-
+AUDTERM_ALL EQU %11111111
 
 ; --
 ; -- AUDENA/NR52 ($FF26)
 ; -- Sound on/off (R/W)
 ; --
 ; -- Bit 7   - All sound on/off (sets all audio regs to 0!)
-; -- Bit 3   - Sound 4 ON flag (doesn't work!)
-; -- Bit 2   - Sound 3 ON flag (doesn't work!)
-; -- Bit 1   - Sound 2 ON flag (doesn't work!)
-; -- Bit 0   - Sound 1 ON flag (doesn't work!)
+; -- Bit 3   - Sound 4 ON flag (read only)
+; -- Bit 2   - Sound 3 ON flag (read only)
+; -- Bit 1   - Sound 2 ON flag (read only)
+; -- Bit 0   - Sound 1 ON flag (read only)
 ; --
 rNR52 EQU $FF26
 rAUDENA EQU rNR52
-
+AUDENA_ENABLED EQU %10000000
 
 ;***************************************************************************
 ;*
@@ -445,8 +453,8 @@ rAUDENA EQU rNR52
 ; --
 ; -- Bit 6-4 - Sweep Time
 ; -- Bit 3   - Sweep Increase/Decrease
-; --           0: Addition    (frequency increases???)
-; --           1: Subtraction (frequency increases???)
+; --           0: Addition    (frequency increases)
+; --           1: Subtraction (frequency decreases)
 ; -- Bit 2-0 - Number of sweep shift (# 0-7)
 ; -- Sweep Time: (n*7.8ms)
 ; --
@@ -477,6 +485,10 @@ rAUD1LEN EQU rNR11
 ; --
 rNR12 EQU $FF12
 rAUD1ENV EQU rNR12
+ENV_SWEEP_SHIFT  EQU 0
+ENV_VOLUME_SHIFT EQU 4
+ENV_UP           EQU 8
+ENV_DOWN         EQU 0
 
 
 ; --
@@ -649,7 +661,9 @@ rAUD4POLY EQU rNR43
 ; -- Bit 6 -   Counter/consecutive selection
 ; --
 rNR44 EQU $FF23
-rAUD4GO EQU rNR44 ; silly name!
+rAUD4GO EQU rNR44
+GO_START      EQU %10000000
+GO_STOP_LATER EQU %01000000
 
 ;***************************************************************************
 ;*

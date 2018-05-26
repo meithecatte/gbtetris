@@ -1,271 +1,53 @@
 SECTION "rst0", ROM0[$0]
-        jp Jump_000_028b
+        jp Init
 
 rept 5
         nop
 endr
 
 SECTION "rst8", ROM0[$8]
-RST_08::
-        jp Jump_000_028b
+        jp Init
 
 SECTION "rst28", ROM0[$28]
-RST_28::
         add a
         pop hl
         ld e, a
         ld d, $00
-        add hl, de
-        ld e, [hl]
-        inc hl
-        ld d, [hl]
-        push de
-        pop hl
+        add hl, de ; do this twice instead of add a at the beginning for increased range
+        ld e, [hl] ; better:
+        inc hl     ; ld a, [hli]
+        ld d, [hl] ; ld h, [hl]
+        push de    ; ld l, a
+        pop hl     ; could easily make this save DE
         jp hl
 
-SECTION "VBlank", ROM0[$40]
-VBlankInterrupt::
-        jp Jump_000_01fd
+SECTION "VBlankInterrupt", ROM0[$40]
+        jp VBlankInterrupt
 
 SECTION "LCDC", ROM0[$48]
-LCDCInterrupt::
-        jp Jump_000_2712
+        jp EmptyInterrupt
 
+SECTION "Timer", ROM0[$50]
+        jp EmptyInterrupt
 
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
+SECTION "Serial", ROM0[$58]
+        jp SerialInterrupt
 
-TimerOverflowInterrupt::
-        jp Jump_000_2712
-
-
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-
-SerialTransferCompleteInterrupt::
-        jp Jump_000_017e
-
-
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-
-JoypadTransitionInterrupt::
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-        rst $38
-
-Boot::
+SECTION "Entry Point", ROM0[$100]
         nop
-        jp Jump_000_0150
+        jp Boot
 
+	rept $14E - $104
+	db $00
+	endr
 
-HeaderLogo::
-        DB $ce, $ed, $66, $66, $cc, $0d, $00, $0b, $03, $73, $00, $83, $00, $0c, $00, $0d
-        DB $00, $08, $11, $1f, $88, $89, $00, $0e, $dc, $cc, $6e, $e6, $dd, $dd, $d9, $99
-        DB $bb, $bb, $67, $63, $6e, $0e, $ec, $cc, $dd, $dc, $99, $9f, $bb, $b9, $33, $3e
-
-HeaderTitle::
-        DB "TETRIS", $00, $00, $00, $00, $00, $00, $00, $00, $00, $00
-
-HeaderNewLicenseeCode::
-        DB $00, $00
-
-HeaderSGBFlag::
-        DB $00
-
-HeaderCartridgeType::
-        DB $00
-
-HeaderROMSize::
-        DB $00
-
-HeaderRAMSize::
-        DB $00
-
-HeaderDestinationCode::
-        DB $00
-
-HeaderOldLicenseeCode::
-        DB $01
-
-HeaderMaskROMVersion::
-        DB $00
-
-HeaderComplementCheck::
-        DB $0b
-
+SECTION "Global checksum", ROM0[$14E]
 HeaderGlobalChecksum::
         DB $89, $b5
 
-Jump_000_0150:
-        jp Jump_000_028b
+SECTION "Code", ROM0[$150]
+Boot:
+        jp Init
 
 
         call Call_000_2a2b
@@ -311,12 +93,12 @@ Call_000_0166:
         ret
 
 
-Jump_000_017e:
+SerialInterrupt::
         push af
         push hl
         push de
         push bc
-        call Call_000_018e
+        call HandleSerialState
         ld a, $01
         ld [$ff00+$cc], a
         pop bc
@@ -325,15 +107,16 @@ Jump_000_017e:
         pop af
         reti
 
+HandleSerialState::
+        ld a, [hSerialState]
+        jumptable
+	dw Jump_000_019b
+	dw Jump_000_01c2
+	dw Jump_000_01c7
+	dw Jump_000_01dd
+	dw GenericEmptyRoutine
 
-Call_000_018e:
-        ld a, [$ff00+$cd]
-        rst $28
-        sbc e
-        ld bc, $01c2
-        rst $00
-        ld bc, $01dd
-        ld a, $28
+Jump_000_019b::
         ld a, [$ff00+$e1]
         cp $07
         jr z, jr_000_01a9
@@ -368,34 +151,34 @@ jr_000_01bf:
         ld [rSC], a
         ret
 
-
+Jump_000_01c2::
         ld a, [rSB]
         ld [$ff00+$d0], a
         ret
 
-
+Jump_000_01c7::
         ld a, [rSB]
         ld [$ff00+$d0], a
         ld a, [$ff00+$cb]
         cp $29
         ret z
 
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         ld [rSB], a
         ld a, $ff
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, $80
         ld [rSC], a
         ret
 
-
+Jump_000_01dd::
         ld a, [rSB]
         ld [$ff00+$d0], a
         ld a, [$ff00+$cb]
         cp $29
         ret z
 
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         ld [rSB], a
         ei
         call Call_000_0b07
@@ -404,7 +187,7 @@ jr_000_01bf:
         ret
 
 
-        ld a, [$ff00+$cd]
+        ld a, [hSerialState]
         cp $02
         ret nz
 
@@ -413,28 +196,27 @@ jr_000_01bf:
         ei
         ret
 
-
-Jump_000_01fd:
+VBlankInterrupt::
         push af
         push bc
         push de
         push hl
         ld a, [$ff00+$ce]
         and a
-        jr z, jr_000_0218
+        jr z, .skip_serial
 
         ld a, [$ff00+$cb]
         cp $29
-        jr nz, jr_000_0218
+        jr nz, .skip_serial
 
         xor a
         ld [$ff00+$ce], a
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         ld [rSB], a
-        ld hl, $ff02
-        ld [hl], $81
+        ld hl, rSC
+        ld [hl], SC_RQ | SC_MASTER
 
-jr_000_0218:
+.skip_serial:
         call Call_000_2240
         call Call_000_242c
         call Call_000_2417
@@ -455,7 +237,7 @@ jr_000_0218:
         call Call_000_230d
         call Call_000_22fe
         call Call_000_1f32
-        call $ffb6
+        call hOAMDMA
         call Call_000_192e
         ld a, [$c0ce]
         and a
@@ -488,23 +270,22 @@ jr_000_027a:
         pop af
         reti
 
-
-Jump_000_028b:
+Init::
         xor a
         ld hl, $dfff
-        ld c, $10
+        ld c, $10 ; could ld bc,
         ld b, $00
 
-jr_000_0293:
+.clear_wramx:
         ld [hl-], a
         dec b
-        jr nz, jr_000_0293
+        jr nz, .clear_wramx
 
         dec c
-        jr nz, jr_000_0293
+        jr nz, .clear_wramx
 
-Jump_000_029a:
-        ld a, $01
+SoftReset:
+        ld a, IEF_VBLANK
         di
         ld [rIF], a
         ld [rIE], a
@@ -515,94 +296,96 @@ Jump_000_029a:
         ld [rSTAT], a
         ld [rSB], a
         ld [rSC], a
-        ld a, $80
+        ld a, LCDCF_ON
         ld [rLCDC], a
 
-jr_000_02b2:
+.vblank_wait:
         ld a, [rLY]
-        cp $94
-        jr nz, jr_000_02b2
+        cp SCRN_Y + 4
+        jr nz, .vblank_wait
 
-        ld a, $03
+        ld a, LCDCF_OBJON | LCDCF_BGON
         ld [rLCDC], a
-        ld a, $e4
+        ld a, %11100100
         ld [rBGP], a
         ld [rOBP0], a
-        ld a, $c4
+        ld a, %11000100
         ld [rOBP1], a
-        ld hl, $ff26
-        ld a, $80
+        ld hl, rAUDENA
+        ld a, AUDENA_ENABLED
         ld [hl-], a
-        ld a, $ff
+	assert rAUDENA +- 1 == rAUDTERM
+        ld a, AUDTERM_ALL
         ld [hl-], a
-        ld [hl], $77
-        ld a, $01
+	assert rAUDTERM +- 1 == rAUDVOL
+        ld [hl], AUDVOL_MAX
+        ld a, $01 ; noop on the cartridge used
         ld [$2000], a
         ld sp, $cfff
         xor a
         ld hl, $dfff
         ld b, $00
 
-jr_000_02df:
+.clear_unk:
         ld [hl-], a
         dec b
-        jr nz, jr_000_02df
+        jr nz, .clear_unk
 
         ld hl, $cfff
         ld c, $10
-        ld b, $00
+        ld b, $00 ; unnecessary
 
-jr_000_02ea:
+.clear_wram0:
         ld [hl-], a
         dec b
-        jr nz, jr_000_02ea
+        jr nz, .clear_wram0
 
         dec c
-        jr nz, jr_000_02ea
+        jr nz, .clear_wram0
 
-        ld hl, $9fff
+        ld hl, $9fff ; could just load h
         ld c, $20
-        xor a
-        ld b, $00
+        xor a ; unnecessary
+        ld b, $00 ; unnecessary
 
-jr_000_02f9:
+.clear_vram:
         ld [hl-], a
         dec b
-        jr nz, jr_000_02f9
+        jr nz, .clear_vram
 
         dec c
-        jr nz, jr_000_02f9
+        jr nz, .clear_vram
 
         ld hl, $feff
-        ld b, $00
+        ld b, $00 ; unnecessary
 
-jr_000_0305:
+.clear_oam:
         ld [hl-], a
         dec b
-        jr nz, jr_000_0305
+        jr nz, .clear_oam
 
         ld hl, $fffe
-        ld b, $80
+        ld b, $80 ; writes to ff7f too, could break forward compat
 
-jr_000_030e:
+.clear_hram:
         ld [hl-], a
         dec b
-        jr nz, jr_000_030e
+        jr nz, .clear_hram
 
-        ld c, $b6
+        ld c, LOW(hOAMDMA) ; could ld bc, 
         ld b, $0c
-        ld hl, $2ac7
+        ld hl, DMA_Routine
 
-jr_000_0319:
+.copy_dma_routine:
         ld a, [hl+]
         ld [$ff00+c], a
         inc c
         dec b
-        jr nz, jr_000_0319
+        jr nz, .copy_dma_routine
 
-        call $27e9
-        call $7ff3
-        ld a, $09
+        call ClearTilemapA
+        call JumpResetAudio
+        ld a, IEF_SERIAL | IEF_VBLANK
         ld [rIE], a
         ld a, $37
         ld [$ff00+$c0], a
@@ -610,7 +393,7 @@ jr_000_0319:
         ld [$ff00+$c1], a
         ld a, $24
         ld [$ff00+$e1], a
-        ld a, $80
+        ld a, LCDCF_ON
         ld [rLCDC], a
         ei
         xor a
@@ -626,7 +409,7 @@ Jump_000_0343:
         ld a, [$ff00+$80]
         and $0f
         cp $0f
-        jp z, Jump_000_029a
+        jp z, SoftReset
 
         ld hl, $ffa6
         ld b, $02
@@ -1189,7 +972,7 @@ jr_000_062d:
         jr jr_000_063e
 
         ld a, $03
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         ld a, [$ff00+$cb]
         cp $29
         jr nz, jr_000_062d
@@ -1202,7 +985,7 @@ jr_000_063e:
         ld [$ff00+$ce], a
         xor a
         ld [rSB], a
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$dc], a
         ld [$ff00+$d2], a
         ld [$ff00+$d3], a
@@ -1253,7 +1036,7 @@ jr_000_068d:
         xor a
         ld [$ff00+$cc], a
         ld a, $39
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, [$ff00+$d0]
         cp $50
         jr z, jr_000_06d1
@@ -1284,14 +1067,14 @@ jr_000_06b1:
 
         xor a
         ld [$ff00+$cc], a
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         cp $50
         jr z, jr_000_06d1
 
         ld a, [$ff00+$c1]
 
 jr_000_06ca:
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, $01
         ld [$ff00+$ce], a
         ret
@@ -1314,7 +1097,7 @@ jr_000_06dd:
         jr jr_000_0703
 
         ld a, $03
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         ld a, [$ff00+$cb]
         cp $29
         jr nz, jr_000_06dd
@@ -1343,7 +1126,7 @@ jr_000_0703:
         ld [$ff00+$ce], a
         xor a
         ld [rSB], a
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$dc], a
         ld [$ff00+$d2], a
         ld [$ff00+$d3], a
@@ -1454,7 +1237,7 @@ jr_000_074e:
 
 jr_000_07b0:
         ld a, [$ff00+$ad]
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         xor a
         ld [$ff00+$cc], a
 
@@ -1477,7 +1260,7 @@ jr_000_07cc:
         and a
         jr z, jr_000_0821
 
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         cp $60
         jr nz, jr_000_080f
 
@@ -1531,7 +1314,7 @@ jr_000_0817:
         ld a, [$ff00+$ac]
 
 jr_000_0819:
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         xor a
         ld [$ff00+$cc], a
         inc a
@@ -1644,7 +1427,7 @@ Jump_000_0895:
         ld [rSB], a
         ld [$ff00+$ce], a
         ld [$ff00+$d0], a
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$d1], a
         call Call_000_26a5
         call Call_000_22f3
@@ -1709,7 +1492,7 @@ jr_000_0913:
         ld a, $19
         ld [$ff00+$e1], a
         ld a, $01
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         ret
 
 
@@ -1932,7 +1715,7 @@ Jump_000_0a35:
         ld a, $02
         ld [$ff00+$e3], a
         ld a, $03
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         ld a, [$ff00+$cb]
         cp $29
         jr z, jr_000_0a53
@@ -2158,7 +1941,7 @@ jr_000_0b38:
         ld c, $20
         call Call_000_11a3
         ld a, $02
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         call Call_000_26d7
         call Call_000_26ea
         call Call_000_157b
@@ -2234,7 +2017,7 @@ jr_000_0b8e:
         jr z, jr_000_0bd7
 
         ld a, $77
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$b1], a
         ld a, $aa
         ld [$ff00+$d1], a
@@ -2250,7 +2033,7 @@ jr_000_0bd7:
         jr nz, jr_000_0bf8
 
         ld a, $aa
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$b1], a
         ld a, $77
         ld [$ff00+$d1], a
@@ -2334,11 +2117,11 @@ jr_000_0c3a:
         ld a, $01
         ld [$df7f], a
         ld [$ff00+$ab], a
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         ld [$ff00+$f1], a
         xor a
         ld [$ff00+$f2], a
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         call Call_000_1d26
         ret
 
@@ -2416,14 +2199,14 @@ jr_000_0c9e:
         ld a, [$ff00+$b1]
         jr nz, jr_000_0cb1
 
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, $01
         ld [$ff00+$ce], a
         ret
 
 
 jr_000_0cb1:
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ret
 
 
@@ -2564,7 +2347,7 @@ jr_000_0d36:
         ld a, $01
         ld [rIE], a
         ld a, $03
-        ld [$ff00+$cd], a
+        ld [hSerialState], a
         ld a, [$ff00+$d1]
         cp $77
         jr nz, jr_000_0d6d
@@ -2676,7 +2459,7 @@ jr_000_0def:
 
 jr_000_0df5:
         ld a, $60
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$ce], a
         jr jr_000_0e1a
 
@@ -2857,7 +2640,7 @@ jr_000_0ee0:
 
 jr_000_0ee6:
         ld a, $60
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$ce], a
         jr jr_000_0f0b
 
@@ -3418,7 +3201,7 @@ Call_000_11a3:
         jr z, jr_000_11be
 
         ld a, $02
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$ce], a
 
 jr_000_11bc:
@@ -3428,7 +3211,7 @@ jr_000_11bc:
 
 jr_000_11be:
         ld a, c
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$ce], a
         ret
 
@@ -3438,7 +3221,7 @@ jr_000_11c4:
         ret z
 
         ld a, b
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         pop hl
         ret
 
@@ -3483,7 +3266,7 @@ Call_000_1216:
         ld bc, $1000
         call Call_000_2838
         ld hl, $9fff
-        call Call_000_27ec
+        call ClearTilemap
         ld hl, $9dc0
         ld de, $520c
         ld b, $04
@@ -5546,7 +5329,7 @@ Call_000_1c68:
         ld a, [$ff00+$80]
         and $0f
         cp $0f
-        jp z, Jump_000_029a
+        jp z, SoftReset
 
         ld a, [$ff00+$e4]
         and a
@@ -5621,7 +5404,7 @@ jr_000_1cc5:
         ld [$df7f], a
         ld a, [$ff00+$d0]
         ld [$ff00+$f2], a
-        ld a, [$ff00+$cf]
+        ld a, [hSerialByte]
         ld [$ff00+$f1], a
         call Call_000_1d26
         ret
@@ -5642,7 +5425,7 @@ Call_000_1ce3:
         jr nz, jr_000_1cfc
 
         ld a, $94
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld [$ff00+$ce], a
         pop hl
         ret
@@ -5650,7 +5433,7 @@ Call_000_1ce3:
 
 jr_000_1cfc:
         xor a
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, [$ff00+$d0]
         cp $94
         jr z, jr_000_1d24
@@ -5659,7 +5442,7 @@ jr_000_1d05:
         ld a, [$ff00+$f2]
         ld [$ff00+$d0], a
         ld a, [$ff00+$f1]
-        ld [$ff00+$cf], a
+        ld [hSerialByte], a
         ld a, $02
         ld [$df7f], a
         xor a
@@ -7671,7 +7454,7 @@ jr_000_270a:
         inc de
         jr jr_000_270a
 
-Jump_000_2712:
+EmptyInterrupt:
         reti
 
 
@@ -7900,23 +7683,19 @@ jr_000_27df:
         inc [hl]
 
 jr_000_27e7:
-        nop
-        jr nz, @+$23
+	db $00, $20
 
-        rst $38
-        sbc e
-
-Call_000_27ec:
-        ld bc, $0400
-
-jr_000_27ef:
+ClearTilemapA::
+	ld hl, _SCRN0 + SCRN_VY_B * SCRN_VX_B - 1
+ClearTilemap::
+        ld bc, SCRN_VY_B * SCRN_VX_B
+.loop:
         ld a, $2f
         ld [hl-], a
         dec bc
         ld a, b
         or c
-        jr nz, jr_000_27ef
-
+        jr nz, .loop
         ret
 
 
@@ -7975,8 +7754,8 @@ Call_000_282b:
 Call_000_2838:
         ld de, $8000
         call Call_000_27f8
+GenericEmptyRoutine::
         ret
-
 
 Call_000_283f:
         ld hl, $9800
@@ -8409,22 +8188,22 @@ jr_000_29d5:
         cpl
 
 Call_000_29fa:
-        ld a, $20
-        ld [rP1], a
-        ld a, [rP1]
-        ld a, [rP1]
+        ld a, JOYP_DPAD
+        ld [rJOYP], a
+        ld a, [rJOYP]
+        ld a, [rJOYP]
         cpl
         and $0f
         swap a
         ld b, a
-        ld a, $10
-        ld [rP1], a
-        ld a, [rP1]
-        ld a, [rP1]
-        ld a, [rP1]
-        ld a, [rP1]
-        ld a, [rP1]
-        ld a, [rP1]
+        ld a, JOYP_BUTTONS
+        ld [rJOYP], a
+        ld a, [rJOYP]
+        ld a, [rJOYP]
+        ld a, [rJOYP]
+        ld a, [rJOYP]
+        ld a, [rJOYP]
+        ld a, [rJOYP]
         cpl
         and $0f
         or b
@@ -8435,10 +8214,9 @@ Call_000_29fa:
         ld [$ff00+$81], a
         ld a, c
         ld [$ff00+$80], a
-        ld a, $30
-        ld [rP1], a
+        ld a, JOYP_DESELECT
+        ld [rJOYP], a
         ret
-
 
 Call_000_2a2b:
         ld a, [$ff00+$b2]
@@ -8569,15 +8347,15 @@ jr_000_2abf:
         pop af
         jr jr_000_2aae
 
+DMA_Routine::
         ld a, $c0
         ld [rDMA], a
         ld a, $28
-
-jr_000_2acd:
+.wait:
         dec a
-        jr nz, jr_000_2acd
-
+        jr nz, .wait
         ret
+DMA_Routine_End:
 
 
 Call_000_2ad1:
@@ -12497,7 +12275,7 @@ jr_000_3c0d:
         DB $fd
         DB $fd
         ld hl, sp+$00
-        ld [rP1], a
+        ld [rJOYP], a
         ret nz
 
         nop
@@ -12536,7 +12314,7 @@ jr_000_3c0d:
         ret nz
 
         nop
-        ld [rP1], a
+        ld [rJOYP], a
         ld hl, sp+$00
         rst $38
         nop
