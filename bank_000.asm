@@ -21,7 +21,7 @@ SECTION "rst28", ROM0[$28]
         pop hl     ; could easily make this save DE
         jp hl
 
-SECTION "VBlankInterrupt", ROM0[$40]
+SECTION "VBlank", ROM0[$40]
         jp VBlankInterrupt
 
 SECTION "LCDC", ROM0[$48]
@@ -99,7 +99,7 @@ SerialInterrupt::
         push bc
         call HandleSerialState
         ld a, $01
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         pop bc
         pop de
         pop hl
@@ -109,82 +109,80 @@ SerialInterrupt::
 HandleSerialState::
         ld a, [hSerialState]
         jumptable
-	dw Jump_000_019b
-	dw Jump_000_01c2
-	dw Jump_000_01c7
-	dw Jump_000_01dd
+	dw SerialTitleScreen ; SERIAL_STATE_TITLESCREEN
+	dw SerialState1
+	dw SerialState2
+	dw SerialState3
 	dw GenericEmptyRoutine
 
-Jump_000_019b::
+SerialTitleScreen::
         ld a, [hGameState]
-        cp $07
-        jr z, jr_000_01a9
+        cp STATE_TITLESCREEN
+        jr z, .on_titlescreen
 
-        cp $06
+        cp STATE_LOAD_TITLESCREEN ; pointless
         ret z
 
-        ld a, $06
+        ld a, STATE_LOAD_TITLESCREEN
         ld [hGameState], a
         ret
 
-
-jr_000_01a9:
+.on_titlescreen:
         ld a, [rSB]
-        cp $55
-        jr nz, jr_000_01b7
+        cp SERIAL_SLAVE
+        jr nz, .not_master
 
-        ld a, $29
-        ld [$ff00+$cb], a
-        ld a, $01
-        jr jr_000_01bf
+        ld a, SERIAL_MASTER
+        ld [hMasterSlave], a
+        ld a, SC_MASTER
+        jr .done
 
-jr_000_01b7:
-        cp $29
+.not_master:
+        cp SERIAL_MASTER
         ret nz
 
-        ld a, $55
-        ld [$ff00+$cb], a
+        ld a, SERIAL_SLAVE
+        ld [hMasterSlave], a
         xor a
 
-jr_000_01bf:
+.done:
         ld [rSC], a
         ret
 
-Jump_000_01c2::
+SerialState1::
         ld a, [rSB]
-        ld [$ff00+$d0], a
+        ld [hRecvBuffer], a
         ret
 
-Jump_000_01c7::
+SerialState2::
         ld a, [rSB]
-        ld [$ff00+$d0], a
-        ld a, [$ff00+$cb]
-        cp $29
+        ld [hRecvBuffer], a
+        ld a, [hMasterSlave]
+        cp SERIAL_MASTER
         ret z
 
-        ld a, [hSerialByte]
+        ld a, [hSendBuffer]
         ld [rSB], a
         ld a, $ff
-        ld [hSerialByte], a
-        ld a, $80
+        ld [hSendBuffer], a
+        ld a, SC_RQ
         ld [rSC], a
         ret
 
-Jump_000_01dd::
+SerialState3::
         ld a, [rSB]
-        ld [$ff00+$d0], a
-        ld a, [$ff00+$cb]
-        cp $29
+        ld [hRecvBuffer], a
+        ld a, [hMasterSlave]
+        cp SERIAL_MASTER
         ret z
 
-        ld a, [hSerialByte]
+        ld a, [hSendBuffer]
         ld [rSB], a
         ei
-        call Call_000_0b07
-        ld a, $80
+        call DelayLoop
+        ld a, SC_RQ
         ld [rSC], a
         ret
-
 
         ld a, [hSerialState]
         cp $02
@@ -200,22 +198,22 @@ VBlankInterrupt::
         push bc
         push de
         push hl
-        ld a, [hSerialByteValid]
+        ld a, [hSendBufferValid]
         and a
-        jr z, .skip_serial
+        jr z, .serial_done
 
-        ld a, [$ff00+$cb]
-        cp $29
-        jr nz, .skip_serial
+        ld a, [hMasterSlave]
+        cp SERIAL_MASTER
+        jr nz, .serial_done
 
         xor a
-        ld [hSerialByteValid], a
-        ld a, [hSerialByte]
+        ld [hSendBufferValid], a
+        ld a, [hSendBuffer]
         ld [rSB], a
         ld hl, rSC
         ld [hl], SC_RQ | SC_MASTER
 
-.skip_serial:
+.serial_done:
         call Call_000_2240
         call Call_000_242c
         call Call_000_2417
@@ -300,7 +298,7 @@ SoftReset:
 
 .vblank_wait:
         ld a, [rLY]
-        cp SCRN_Y + 4
+        cp SCREEN_HEIGHT_PX + 4
         jr nz, .vblank_wait
 
         ld a, LCDCF_OBJON | LCDCF_BGON
@@ -322,25 +320,23 @@ SoftReset:
         ld a, $01 ; noop on the cartridge used
         ld [$2000], a
 
-        ld sp, $cfff
-        xor a
-        ld hl, $dfff
-        ld b, $00
+        ld sp, wStackEnd - 1
 
-.clear_unk:
+        xor a
+        ld hl, wAudioEnd - 1
+        ld b, $00
+.clear_audio:
         ld [hl-], a
         dec b
-        jr nz, .clear_unk
+        jr nz, .clear_audio
 
         ld hl, $cfff
         ld c, $10
         ld b, $00 ; unnecessary
-
 .clear_wram0:
         ld [hl-], a
         dec b
         jr nz, .clear_wram0
-
         dec c
         jr nz, .clear_wram0
 
@@ -348,18 +344,15 @@ SoftReset:
         ld c, $20
         xor a ; unnecessary
         ld b, $00 ; unnecessary
-
 .clear_vram:
         ld [hl-], a
         dec b
         jr nz, .clear_vram
-
         dec c
         jr nz, .clear_vram
 
         ld hl, $feff
         ld b, $00 ; unnecessary
-
 .clear_oam:
         ld [hl-], a
         dec b
@@ -367,16 +360,14 @@ SoftReset:
 
         ld hl, $fffe
         ld b, $80 ; writes to ff7f too, could break forward compat
-
 .clear_hram:
         ld [hl-], a
         dec b
         jr nz, .clear_hram
 
         ld c, LOW(hOAMDMA) ; could ld bc, 
-        ld b, $0c
+        ld b, 12 ; the routine is only 10 bytes long
         ld hl, DMA_Routine
-
 .copy_dma_routine:
         ld a, [hl+]
         ld [$ff00+c], a
@@ -388,11 +379,11 @@ SoftReset:
         call JumpResetAudio
         ld a, IEF_SERIAL | IEF_VBLANK
         ld [rIE], a
-        ld a, $37
+        ld a, $37 ; TODO
         ld [$ff00+$c0], a
         ld a, $1c
         ld [$ff00+$c1], a
-        ld a, STATE_36
+        ld a, STATE_LOAD_COPYRIGHT
         ld [hGameState], a
         ld a, LCDCF_ON
         ld [rLCDC], a
@@ -406,29 +397,27 @@ SoftReset:
 MainLoop::
         call ReadJoypad
         call HandleGameState
-        call $7ff0
+        call JumpUpdateAudio
 
         ld a, [hKeysHeld]
         and A_BUTTON | B_BUTTON | SELECT | START
         cp  A_BUTTON | B_BUTTON | SELECT | START
         jp z, SoftReset
 
-        ld hl, $ffa6
-        ld b, $02
-
-jr_000_035a:
+	assert hDelayCounter + 1 == hDelayCounter2
+        ld hl, hDelayCounter
+        ld b, 2
+.counter_loop:
         ld a, [hl]
         and a
-        jr z, jr_000_035f
-
+        jr z, .already_zero
         dec [hl]
-
-jr_000_035f:
+.already_zero:
         inc l
         dec b
-        jr nz, jr_000_035a
+        jr nz, .counter_loop
 
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr z, .wait_vblank
 
@@ -453,8 +442,8 @@ HandleGameState::
 	dw $12df ; 3
 	dw $1d61 ; 4
 	dw $1d81 ; 5
-	dw $0419 ; 6
-	dw $04e6 ; 7
+	dw LoadTitlescreen ; STATE_LOAD_TITLESCREEN
+	dw HandleTitlescreen ; STATE_TITLESCREEN
 	dw $14a8 ; 8
 	dw $14f0 ; 9
 	dw $1a6b ; 10
@@ -483,9 +472,8 @@ HandleGameState::
 	dw $0eee ; 33
 	dw $1e29 ; 34
 	dw $1e9c ; 35
-	dw HandleState36 ; 36
-        DB $10
-        inc b
+	dw LoadCopyrightScreen ; STATE_LOAD_COPYRIGHT
+        dw HandleCopyrightScreen ; STATE_COPYRIGHT
         rl c
         ld c, d
         ld [de], a
@@ -514,44 +502,44 @@ HandleGameState::
         inc de
         ld a, $28
 
-HandleState36::
+LoadCopyrightScreen::
         call DisableLCD
-        call Call_000_282b
-        ld de, $4a4f
-        call Call_000_283f
-        call Call_000_17ee
-        ld hl, $c300
-        ld de, $64d0
+        call LoadOtherTileset
+        ld de, CopyrightTilemap
+        call LoadTilemapA
+        call ClearOAM
 
-jr_000_03fb:
+        ld hl, $c300 ; TODO
+        ld de, $64d0
+.loop:
         ld a, [de]
         ld [hl+], a
         inc de
         ld a, h
         cp $c4
-        jr nz, jr_000_03fb
+        jr nz, .loop
 
-        ld a, $d3
+        ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
         ld [rLCDC], a
-        ld a, $7d
-        ld [$ff00+$a6], a
-        ld a, $25
+        ld a, 125
+        ld [hDelayCounter], a
+        ld a, STATE_COPYRIGHT
         ld [hGameState], a
         ret
 
-
-        ld a, [$ff00+$a6]
+HandleCopyrightScreen::
+        ld a, [hDelayCounter]
         and a
         ret nz
 
-        ld a, $06
+        ld a, STATE_LOAD_TITLESCREEN
         ld [hGameState], a
         ret
 
-
+LoadTitlescreen::
         call DisableLCD
         xor a
-        ld [$ff00+$e9], a
+        ld [$ff00+$e9], a ; TODO
         ld [$ff00+$98], a
         ld [$ff00+$9c], a
         ld [$ff00+$9b], a
@@ -562,64 +550,65 @@ jr_000_03fb:
         ld [$ff00+$c7], a
         call Call_000_22f3
         call Call_000_26a5
-        call Call_000_282b
-        ld hl, $c800
+        call LoadOtherTileset
 
-jr_000_043b:
+        ld hl, wTileMap ; TODO
+.clear_screen:
         ld a, $2f
         ld [hl+], a
         ld a, h
-        cp $cc
-        jr nz, jr_000_043b
+        cp HIGH(wTileMap_End)
+        jr nz, .clear_screen
 
-        ld hl, $c801
-        call Call_000_26fd
-        ld hl, $c80c
-        call Call_000_26fd
-        ld hl, $ca41
-        ld b, $0c
+        coord hl, 1, 0
+        call DrawVerticalLine
+        coord hl, 12, 0
+        call DrawVerticalLine
+        coord hl, 1, 18
+        ld b, 12
         ld a, $8e
 
-jr_000_0456:
+.loop:
         ld [hl+], a
         dec b
-        jr nz, jr_000_0456
+        jr nz, .loop
 
-        ld de, $4bb7
-        call Call_000_283f
-        call Call_000_17ee
-        ld hl, $c000
-        ld [hl], $80
+        ld de, TitlescreenTilemap
+        call LoadTilemapA
+        call ClearOAM
+
+        ld hl, wOAMBuffer
+        ld [hl], 128 ; y
         inc l
-        ld [hl], $10
+        ld [hl], 16 ; x
         inc l
-        ld [hl], $58
-        ld a, $03
+        ld [hl], $58 ; tile, attr stays 0
+
+        ld a, $03 ; TODO
         ld [$dfe8], a
-        ld a, $d3
+        ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
         ld [rLCDC], a
-        ld a, $07
+        ld a, STATE_TITLESCREEN
         ld [hGameState], a
-        ld a, $7d
-        ld [$ff00+$a6], a
-        ld a, $04
-        ld [$ff00+$c6], a
-        ld a, [$ff00+$e4]
+        ld a, 125
+        ld [hDelayCounter], a
+        ld a, 4 ; if just finished demo, shorter wait
+        ld [hDemoCountdown], a
+        ld a, [hDemoNumber]
         and a
         ret nz
 
-        ld a, $13
-        ld [$ff00+$c6], a
+        ld a, 19
+        ld [hDemoCountdown], a
         ret
 
-
-jr_000_048c:
-        ld a, $37
+StartDemo::
+        ld a, $37 ; TODO
         ld [$ff00+$c0], a
         ld a, $09
         ld [$ff00+$c2], a
         xor a
-        ld [$ff00+$c5], a
+        ld [hMultiplayer], a
         ld [$ff00+$b0], a
         ld [$ff00+$ed], a
         ld [$ff00+$ea], a
@@ -627,10 +616,10 @@ jr_000_048c:
         ld [$ff00+$eb], a
         ld a, $30
         ld [$ff00+$ec], a
-        ld a, [$ff00+$e4]
-        cp $02
-        ld a, $02
-        jr nz, jr_000_04c7
+        ld a, [hDemoNumber]
+        cp 2
+        ld a, 2
+        jr nz, .got_params
 
         ld a, $77
         ld [$ff00+$c0], a
@@ -644,18 +633,18 @@ jr_000_048c:
         ld [$ff00+$ec], a
         ld a, $11
         ld [$ff00+$b0], a
-        ld a, $01
+        ld a, 1
 
-jr_000_04c7:
-        ld [$ff00+$e4], a
-        ld a, $0a
+.got_params:
+        ld [hDemoNumber], a
+        ld a, STATE_10
         ld [hGameState], a
         call DisableLCD
         call LoadTileset
-        ld de, $4d1f
-        call Call_000_283f
-        call Call_000_17ee
-        ld a, $d3
+        ld de, ModeSelectTilemap
+        call LoadTilemapA
+        call ClearOAM
+        ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
         ld [rLCDC], a
         ret
 
@@ -664,141 +653,137 @@ jr_000_04c7:
         ld [$ff00+$e9], a
         ret
 
-
-        ld a, [$ff00+$a6]
+HandleTitlescreen::
+        ld a, [hDelayCounter]
         and a
-        jr nz, jr_000_04f5
+        jr nz, .no_demo
 
-        ld hl, $ffc6
+        ld hl, hDemoCountdown
         dec [hl]
-        jr z, jr_000_048c
+        jr z, StartDemo
 
-        ld a, $7d
-        ld [$ff00+$a6], a
+        ld a, 125
+        ld [hDelayCounter], a
 
-jr_000_04f5:
-        call Call_000_0b07
-        ld a, $55
+.no_demo:
+        call DelayLoop
+        ld a, SERIAL_SLAVE ; if any byte is sent, respond
         ld [rSB], a
-        ld a, $80
+        ld a, SC_RQ
         ld [rSC], a
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
-        jr z, jr_000_050f
+        jr z, .skip_unk
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         and a
-        jr nz, jr_000_0544
+        jr nz, .unk1
 
         xor a
-        ld [$ff00+$cc], a
-        jr jr_000_0576
+        ld [hSerialDone], a
+        jr .go_single
 
-jr_000_050f:
+.skip_unk: ; TODO
         ld a, [hKeysPressed]
         ld b, a
-        ld a, [$ff00+$c5]
-        bit 2, b
-        jr nz, jr_000_0560
+        ld a, [hMultiplayer]
+        bit SELECT_BIT, b
+        jr nz, .switch
 
-        bit 4, b
-        jr nz, jr_000_056f
+        bit D_RIGHT_BIT, b
+        jr nz, .pressed_right
 
-        bit 5, b
-        jr nz, jr_000_0574
+        bit D_LEFT_BIT, b
+        jr nz, .pressed_left
 
-        bit 3, b
+        bit START_BIT, b
         ret z
 
         and a
-        ld a, $08
-        jr z, jr_000_0554
+        ld a, STATE_08
+        jr z, .start_singleplayer
 
         ld a, b
-        cp $08
+        cp START
         ret nz
 
-        ld a, [$ff00+$cb]
-        cp $29
-        jr z, jr_000_0544
+        ld a, [hMasterSlave] ; TODO
+        cp SERIAL_MASTER
+        jr z, .unk1
 
-        ld a, $29
+        ld a, SERIAL_MASTER
         ld [rSB], a
-        ld a, $81
+        ld a, SC_RQ | SC_MASTER
         ld [rSC], a
 
-jr_000_053a:
-        ld a, [$ff00+$cc]
+.wait_serial:
+        ld a, [hSerialDone]
         and a
-        jr z, jr_000_053a
+        jr z, .wait_serial
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         and a
-        jr z, jr_000_0576
+        jr z, .go_single
 
-jr_000_0544:
-        ld a, $2a
+.unk1
+        ld a, STATE_42
 
-jr_000_0546:
+.unk2:
         ld [hGameState], a
         xor a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld [$ff00+$c2], a
         ld [$ff00+$c3], a
         ld [$ff00+$c4], a
-        ld [$ff00+$e4], a
+        ld [hDemoNumber], a
         ret
 
 
-jr_000_0554:
+.start_singleplayer:
         push af
         ld a, [hKeysHeld]
-        bit 7, a
-        jr z, jr_000_055d
-
-        ld [$ff00+$f4], a
-
-jr_000_055d:
+        bit D_DOWN_BIT, a
+        jr z, .no_down_press
+        ld [hStartAtLevel10], a
+.no_down_press:
         pop af
-        jr jr_000_0546
+        jr .unk2
 
-jr_000_0560:
+.switch:
         xor $01
 
-jr_000_0562:
-        ld [$ff00+$c5], a
+.move_cursor:
+        ld [hMultiplayer], a
         and a
         ld a, $10
-        jr z, jr_000_056b
-
+        jr z, .got_pos
         ld a, $60
-
-jr_000_056b:
-        ld [$c001], a
+.got_pos:
+        ld [wOAMBuffer + 1], a
         ret
 
 
-jr_000_056f:
-        and a
+.pressed_right:
+        and a ; just set a to 1 and jump to move_cursor!
         ret nz
 
-        xor a
-        jr jr_000_0560
+        xor a ; redundant
+        jr .switch
 
-jr_000_0574:
-        and a
+.pressed_left:
+        and a ; just set a to 0 and jump to move_cursor!
         ret z
 
-jr_000_0576:
+.go_single:
         xor a
-        jr jr_000_0562
+        jr .move_cursor
 
 Call_000_0579:
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         ret z
 
-        call Call_000_0b07
+        call DelayLoop
         xor a
         ld [rSB], a
         ld a, $80
@@ -818,7 +803,7 @@ Call_000_0579:
 
 jr_000_059a:
         ld hl, $ffb0
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         cp $02
         ld b, $10
         jr z, jr_000_05a7
@@ -836,7 +821,7 @@ jr_000_05a7:
 
 
 Call_000_05af:
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         ret z
 
@@ -893,7 +878,7 @@ jr_000_05e1:
 
 
 Call_000_05f0:
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         ret z
 
@@ -934,7 +919,7 @@ jr_000_061a:
 
 
 Call_000_0620:
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         ret z
 
@@ -954,7 +939,7 @@ jr_000_062d:
 
         ld a, $03
         ld [hSerialState], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_062d
 
@@ -963,10 +948,10 @@ jr_000_063e:
         ld a, $80
         ld [$c210], a
         call Call_000_26c5
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
         xor a
         ld [rSB], a
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld [$ff00+$dc], a
         ld [$ff00+$d2], a
         ld [$ff00+$d3], a
@@ -979,7 +964,7 @@ jr_000_063e:
         ret
 
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0680
 
@@ -1006,19 +991,19 @@ jr_000_0680:
         call Call_000_1514
 
 jr_000_068d:
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_06b1
 
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         ret z
 
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $39
-        ld [hSerialByte], a
-        ld a, [$ff00+$d0]
+        ld [hSendBuffer], a
+        ld a, [hRecvBuffer]
         cp $50
         jr z, jr_000_06d1
 
@@ -1042,27 +1027,27 @@ jr_000_06b1:
         bit 0, a
         jr nz, jr_000_06d9
 
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         ret z
 
         xor a
-        ld [$ff00+$cc], a
-        ld a, [hSerialByte]
+        ld [hSerialDone], a
+        ld a, [hSendBuffer]
         cp $50
         jr z, jr_000_06d1
 
         ld a, [$ff00+$c1]
 
 jr_000_06ca:
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld a, $01
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
         ret
 
 
 jr_000_06d1:
-        call Call_000_17ee
+        call ClearOAM
         ld a, $16
         ld [hGameState], a
         ret
@@ -1080,7 +1065,7 @@ jr_000_06dd:
 HandleState22::
         ld a, $03
         ld [hSerialState], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_06dd
 
@@ -1100,15 +1085,15 @@ jr_000_0703:
         call DisableLCD
         call LoadTileset
         ld de, $525c
-        call Call_000_283f
-        call Call_000_17ee
+        call LoadTilemapA
+        call ClearOAM
         ld a, $2f
         call Call_000_2038
         ld a, $03
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
         xor a
         ld [rSB], a
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld [$ff00+$dc], a
         ld [$ff00+$d2], a
         ld [$ff00+$d3], a
@@ -1117,7 +1102,7 @@ jr_000_0703:
         ld [$ff00+$e3], a
 
 jr_000_072c:
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld hl, $c400
         ld b, $0a
         ld a, $28
@@ -1200,15 +1185,15 @@ jr_000_074e:
         ret
 
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_07c2
 
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_07b7
 
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $60
         jr z, jr_000_07d7
 
@@ -1219,9 +1204,9 @@ jr_000_074e:
 
 jr_000_07b0:
         ld a, [$ff00+$ad]
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
 
 jr_000_07b7:
         ld de, $c210
@@ -1238,16 +1223,16 @@ jr_000_07c2:
         jr jr_000_0819
 
 jr_000_07cc:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0821
 
-        ld a, [hSerialByte]
+        ld a, [hSendBuffer]
         cp $60
         jr nz, jr_000_080f
 
 jr_000_07d7:
-        call Call_000_17ee
+        call ClearOAM
 
 Jump_000_07da:
         ld a, [$ff00+$d6]
@@ -1256,7 +1241,7 @@ Jump_000_07da:
 
         ld a, $18
         ld [hGameState], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ret nz
 
@@ -1270,7 +1255,7 @@ Jump_000_07da:
 
 
 jr_000_07f7:
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
 
 jr_000_07fb:
@@ -1286,7 +1271,7 @@ jr_000_07fb:
 
 
 jr_000_080f:
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $06
         jr nc, jr_000_0817
 
@@ -1296,11 +1281,11 @@ jr_000_0817:
         ld a, [$ff00+$ac]
 
 jr_000_0819:
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         inc a
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
 
 jr_000_0821:
         ld de, $c200
@@ -1405,11 +1390,11 @@ Jump_000_0895:
         ld [$ff00+$9b], a
         ld [$ff00+$fb], a
         ld [$ff00+$9f], a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld [rSB], a
-        ld [hSerialByteValid], a
-        ld [$ff00+$d0], a
-        ld [hSerialByte], a
+        ld [hSendBufferValid], a
+        ld [hRecvBuffer], a
+        ld [hSendBuffer], a
         ld [$ff00+$d1], a
         call Call_000_26a5
         call Call_000_22f3
@@ -1419,18 +1404,18 @@ Jump_000_0895:
 jr_000_08b9:
         ld [$ff00+$e3], a
         ld [$ff00+$e7], a
-        call Call_000_17ee
+        call ClearOAM
         ld de, $53c4
         push de
         ld a, $01
         ld [$ff00+$a9], a
-        ld [$ff00+$c5], a
-        call Call_000_283f
+        ld [hMultiplayer], a
+        call LoadTilemapA
 
 jr_000_08cd:
         pop de
         ld hl, $9c00
-        call Call_000_2842
+        call LoadTilemap
         ld de, $288d
         ld hl, $9c63
         ld c, $0a
@@ -1450,7 +1435,7 @@ jr_000_08cd:
         call Call_000_1b43
         xor a
         ld [$ff00+$a0], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ld de, $0943
         ld a, [$ff00+$ac]
@@ -1516,17 +1501,17 @@ jr_000_0913:
         ld [$ffe0], sp
         xor a
         ld [rIF], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
 
 jr_000_095c:
         cp $29
         jp nz, Jump_000_0a65
 
 jr_000_0961:
-        call Call_000_0b07
-        call Call_000_0b07
+        call DelayLoop
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $29
 
 jr_000_096c:
@@ -1535,7 +1520,7 @@ jr_000_096c:
         ld [rSC], a
 
 jr_000_0972:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0972
 
@@ -1552,8 +1537,8 @@ jr_000_0985:
 
 jr_000_0987:
         xor a
-        ld [$ff00+$cc], a
-        call Call_000_0b07
+        ld [hSerialDone], a
+        call DelayLoop
         ld a, [hl+]
         ld [rSB], a
         ld a, $81
@@ -1562,7 +1547,7 @@ jr_000_0992:
         ld [rSC], a
 
 jr_000_0994:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0994
 
@@ -1631,17 +1616,17 @@ jr_000_09dc:
         jr jr_000_09d3
 
 jr_000_09e3:
-        call Call_000_0b07
-        call Call_000_0b07
+        call DelayLoop
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $29
         ld [rSB], a
         ld a, $81
         ld [rSC], a
 
 jr_000_09f4:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_09f4
 
@@ -1654,15 +1639,15 @@ jr_000_09f4:
 
 jr_000_0a04:
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, [hl+]
-        call Call_000_0b07
+        call DelayLoop
         ld [rSB], a
         ld a, $81
         ld [rSC], a
 
 jr_000_0a11:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0a11
 
@@ -1670,17 +1655,17 @@ jr_000_0a11:
         jr nz, jr_000_0a04
 
 jr_000_0a19:
-        call Call_000_0b07
-        call Call_000_0b07
+        call DelayLoop
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $30
         ld [rSB], a
         ld a, $81
         ld [rSC], a
 
 jr_000_0a2a:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0a2a
 
@@ -1698,7 +1683,7 @@ Jump_000_0a35:
         ld [$ff00+$e3], a
         ld a, $03
         ld [hSerialState], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0a53
 
@@ -1733,16 +1718,16 @@ jr_000_0a6f:
         jr jr_000_0a6f
 
 jr_000_0a75:
-        call Call_000_0b07
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $55
         ld [rSB], a
         ld a, $80
         ld [rSC], a
 
 jr_000_0a83:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0a83
 
@@ -1758,13 +1743,13 @@ jr_000_0a93:
 
 jr_000_0a95:
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld [rSB], a
         ld a, $80
         ld [rSC], a
 
 jr_000_0a9e:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0a9e
 
@@ -1778,16 +1763,16 @@ jr_000_0a9e:
         jr nz, jr_000_0a93
 
 jr_000_0aad:
-        call Call_000_0b07
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $55
         ld [rSB], a
         ld a, $80
         ld [rSC], a
 
 jr_000_0abb:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0abb
 
@@ -1800,13 +1785,13 @@ jr_000_0abb:
 
 jr_000_0acb:
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld [rSB], a
         ld a, $80
         ld [rSC], a
 
 jr_000_0ad4:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0ad4
 
@@ -1816,16 +1801,16 @@ jr_000_0ad4:
         jr nz, jr_000_0acb
 
 jr_000_0adf:
-        call Call_000_0b07
+        call DelayLoop
         xor a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ld a, $56
         ld [rSB], a
         ld a, $80
         ld [rSC], a
 
 jr_000_0aed:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_0aed
 
@@ -1848,16 +1833,13 @@ jr_000_0b02:
 
         ret
 
-
-Call_000_0b07:
+DelayLoop::
         push bc
-        ld b, $fa
-
-jr_000_0b0a:
+        ld b, 250
+.loop:
         ld b, b
         dec b
-        jr nz, jr_000_0b0a
-
+        jr nz, .loop
         pop bc
         ret
 
@@ -1972,7 +1954,7 @@ jr_000_0b85:
 jr_000_0b8e:
         ld [hl], $2f
         ld a, $03
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
         ret
 
 
@@ -1999,14 +1981,14 @@ jr_000_0b8e:
         jr z, jr_000_0bd7
 
         ld a, $77
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld [$ff00+$b1], a
         ld a, $aa
         ld [$ff00+$d1], a
         ld a, $1b
         ld [hGameState], a
         ld a, $05
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         jr jr_000_0be7
 
 jr_000_0bd7:
@@ -2015,7 +1997,7 @@ jr_000_0bd7:
         jr nz, jr_000_0bf8
 
         ld a, $aa
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld [$ff00+$b1], a
         ld a, $77
         ld [$ff00+$d1], a
@@ -2026,11 +2008,11 @@ jr_000_0be7:
         ld [$ff00+$d2], a
         ld [$ff00+$d3], a
         ld [$ff00+$d4], a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_0bf8
 
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
 
 jr_000_0bf8:
         call Call_000_0c54
@@ -2092,32 +2074,32 @@ jr_000_0c2b:
 
 
 jr_000_0c3a:
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0c92
 
         ld a, $01
         ld [$df7f], a
         ld [$ff00+$ab], a
-        ld a, [hSerialByte]
+        ld a, [hSendBuffer]
         ld [$ff00+$f1], a
         xor a
         ld [$ff00+$f2], a
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         call Call_000_1d26
         ret
 
 
 Call_000_0c54:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         ret z
 
         ld hl, $c030
         ld de, $0004
         xor a
-        ld [$ff00+$cc], a
-        ld a, [$ff00+$d0]
+        ld [hSerialDone], a
+        ld a, [hRecvBuffer]
         cp $aa
         jr z, jr_000_0cc8
 
@@ -2175,20 +2157,20 @@ jr_000_0c92:
 
 jr_000_0c9e:
         ld a, $ff
-        ld [$ff00+$d0], a
-        ld a, [$ff00+$cb]
+        ld [hRecvBuffer], a
+        ld a, [hMasterSlave]
         cp $29
         ld a, [$ff00+$b1]
         jr nz, jr_000_0cb1
 
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld a, $01
-        ld [hSerialByteValid], a
+        ld [hSendBufferValid], a
         ret
 
 
 jr_000_0cb1:
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ret
 
 
@@ -2217,7 +2199,7 @@ jr_000_0cc8:
         ld a, $1b
         ld [hGameState], a
         ld a, $05
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld c, $01
         ld b, $12
         jr jr_000_0c80
@@ -2322,7 +2304,7 @@ jr_000_0d36:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -2334,7 +2316,7 @@ jr_000_0d36:
         cp $77
         jr nz, jr_000_0d6d
 
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $aa
         jr nz, jr_000_0d77
 
@@ -2347,7 +2329,7 @@ jr_000_0d6d:
         cp $aa
         jr nz, jr_000_0d77
 
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $77
         jr z, jr_000_0d67
 
@@ -2367,13 +2349,13 @@ jr_000_0d77:
 jr_000_0d8b:
         ld [hGameState], a
         ld a, $28
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $1d
-        ld [$ff00+$c6], a
+        ld [hDemoCountdown], a
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -2388,7 +2370,7 @@ jr_000_0d8b:
 jr_000_0da4:
         call Call_000_0fd3
         ld de, $274d
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0db3
 
@@ -2399,7 +2381,7 @@ jr_000_0db3:
         ld c, $03
         call Call_000_17da
         ld a, $19
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [$ff00+$ef]
         and a
         jr z, jr_000_0dc9
@@ -2428,7 +2410,7 @@ jr_000_0de2:
         cp $05
         jr nz, jr_000_0def
 
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         and a
         jr z, jr_000_0df5
 
@@ -2441,20 +2423,20 @@ jr_000_0def:
 
 jr_000_0df5:
         ld a, $60
-        ld [hSerialByte], a
-        ld [hSerialByteValid], a
+        ld [hSendBuffer], a
+        ld [hSendBufferValid], a
         jr jr_000_0e1a
 
         ld a, $01
         ld [rIE], a
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         jr z, jr_000_0e11
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0de2
 
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $60
         jr z, jr_000_0e1a
 
@@ -2468,19 +2450,19 @@ jr_000_0e11:
 jr_000_0e1a:
         ld a, $1f
         ld [hGameState], a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ret
 
 
 Call_000_0e21:
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_0e49
 
         ld hl, $ffc6
         dec [hl]
         ld a, $19
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         call Call_000_0fc4
         ld hl, $c201
         ld a, [hl]
@@ -2504,7 +2486,7 @@ jr_000_0e49:
         cp $05
         jr nz, jr_000_0e77
 
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         ld hl, $c221
         cp $06
         jr z, jr_000_0e73
@@ -2541,12 +2523,12 @@ jr_000_0e73:
 
 
 jr_000_0e77:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         ret nz
 
         ld a, $0f
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld hl, $c223
         ld a, [hl]
         xor $01
@@ -2554,7 +2536,7 @@ jr_000_0e77:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -2569,7 +2551,7 @@ jr_000_0e77:
 jr_000_0e95:
         call Call_000_0fd3
         ld de, $2771
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0ea4
 
@@ -2580,7 +2562,7 @@ jr_000_0ea4:
         ld c, $02
         call Call_000_17da
         ld a, $19
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [$ff00+$ef]
         and a
         jr z, jr_000_0eba
@@ -2609,7 +2591,7 @@ jr_000_0ed3:
         cp $05
         jr nz, jr_000_0ee0
 
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         and a
         jr z, jr_000_0ee6
 
@@ -2622,20 +2604,20 @@ jr_000_0ee0:
 
 jr_000_0ee6:
         ld a, $60
-        ld [hSerialByte], a
-        ld [hSerialByteValid], a
+        ld [hSendBuffer], a
+        ld [hSendBufferValid], a
         jr jr_000_0f0b
 
         ld a, $01
         ld [rIE], a
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         jr z, jr_000_0f02
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr z, jr_000_0ed3
 
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         cp $60
         jr z, jr_000_0f0b
 
@@ -2649,19 +2631,19 @@ jr_000_0f02:
 jr_000_0f0b:
         ld a, $1f
         ld [hGameState], a
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         ret
 
 
 Call_000_0f12:
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_0f33
 
         ld hl, $ffc6
         dec [hl]
         ld a, $19
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         call Call_000_0fc4
         ld hl, $c211
         ld a, [hl]
@@ -2679,7 +2661,7 @@ jr_000_0f33:
         cp $05
         jr nz, jr_000_0f6b
 
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         ld hl, $c201
         cp $05
         jr z, jr_000_0f67
@@ -2724,12 +2706,12 @@ jr_000_0f67:
 
 
 jr_000_0f6b:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         ret nz
 
         ld a, $0f
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld hl, $c203
         ld a, [hl]
         xor $01
@@ -2748,7 +2730,7 @@ Call_000_0f7b:
         cp $05
         jr z, jr_000_0f9d
 
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_0f9d
 
@@ -2830,11 +2812,11 @@ Call_000_0fd3:
         ld hl, $9800
         ld de, $552c
         ld b, $04
-        call Call_000_2844
+        call CopyRowsToTilemap
         ld hl, $9980
         ld b, $06
-        call Call_000_2844
-        ld a, [$ff00+$cb]
+        call CopyRowsToTilemap
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_101d
 
@@ -2876,7 +2858,7 @@ jr_000_1025:
 
         ld hl, $98a5
         ld b, $0b
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ld de, $1157
         jr z, jr_000_103f
@@ -2889,7 +2871,7 @@ jr_000_103f:
 
 jr_000_1044:
         ld c, a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ld a, $93
         jr nz, jr_000_104f
@@ -2924,7 +2906,7 @@ jr_000_1073:
 
         ld hl, $98a5
         ld b, $0b
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ld de, $1162
         jr z, jr_000_108d
@@ -2937,7 +2919,7 @@ jr_000_108d:
 
 jr_000_1092:
         ld c, a
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ld a, $8f
         jr nz, jr_000_109d
@@ -2971,7 +2953,7 @@ jr_000_10b6:
 jr_000_10c6:
         ld a, $d3
         ld [rLCDC], a
-        call Call_000_17ee
+        call ClearOAM
         ret
 
 
@@ -3139,11 +3121,11 @@ jr_000_114c:
         or c
         ld a, $01
         ld [rIE], a
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
-        call Call_000_17ee
+        call ClearOAM
         xor a
         ld [$ff00+$ef], a
         ld b, $27
@@ -3168,23 +3150,23 @@ jr_000_119e:
 
 
 Call_000_11a3:
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         and a
         jr z, jr_000_11bc
 
         xor a
-        ld [$ff00+$cc], a
-        ld a, [$ff00+$cb]
+        ld [hSerialDone], a
+        ld a, [hMasterSlave]
         cp $29
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         jr nz, jr_000_11c4
 
         cp b
         jr z, jr_000_11be
 
         ld a, $02
-        ld [hSerialByte], a
-        ld [hSerialByteValid], a
+        ld [hSendBuffer], a
+        ld [hSendBufferValid], a
 
 jr_000_11bc:
         pop hl
@@ -3193,8 +3175,8 @@ jr_000_11bc:
 
 jr_000_11be:
         ld a, c
-        ld [hSerialByte], a
-        ld [hSerialByteValid], a
+        ld [hSendBuffer], a
+        ld [hSendBufferValid], a
         ret
 
 
@@ -3203,7 +3185,7 @@ jr_000_11c4:
         ret z
 
         ld a, b
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         pop hl
         ret
 
@@ -3234,7 +3216,7 @@ jr_000_11c4:
         ld a, $db
         ld [rLCDC], a
         ld a, $bb
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $27
         ld [hGameState], a
         ld a, $10
@@ -3252,7 +3234,7 @@ Call_000_1216:
         ld hl, $9dc0
         ld de, $520c
         ld b, $04
-        call Call_000_2844
+        call CopyRowsToTilemap
         ld hl, $9cec
         ld de, $148d
         ld b, $07
@@ -3264,7 +3246,7 @@ Call_000_1216:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -3273,13 +3255,13 @@ Call_000_1216:
         ld l, $20
         ld [hl], $00
         ld a, $ff
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $28
         ld [hGameState], a
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr z, jr_000_1269
 
@@ -3295,13 +3277,13 @@ jr_000_1269:
         ld l, $23
         ld [hl], $35
         ld a, $ff
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $2f
         call Call_000_2032
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr z, jr_000_1289
 
@@ -3324,12 +3306,12 @@ jr_000_1289:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_12db
 
         ld a, $0a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld hl, $c201
         dec [hl]
         ld a, [hl]
@@ -3360,12 +3342,12 @@ jr_000_12db:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_1301
 
         ld a, $0a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld hl, $c211
         dec [hl]
         ld l, $01
@@ -3384,12 +3366,12 @@ jr_000_12db:
 
 
 jr_000_1301:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         jr nz, jr_000_1311
 
         ld a, $06
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld hl, $c213
         ld a, [hl]
         xor $01
@@ -3401,12 +3383,12 @@ jr_000_1311:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
         ld a, $06
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [$ff00+$ca]
         sub $82
         ld e, a
@@ -3438,7 +3420,7 @@ jr_000_1311:
         ret nz
 
         ld a, $ff
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $2d
         ld [hGameState], a
         ret
@@ -3458,7 +3440,7 @@ jr_000_1311:
         ld l, $bc
         dec a
         ld c, $3e
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -3472,7 +3454,7 @@ jr_000_1311:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -3495,7 +3477,7 @@ jr_000_1311:
         ld a, $db
         ld [rLCDC], a
         ld a, $bb
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $2f
         ld [hGameState], a
         ld a, $10
@@ -3503,7 +3485,7 @@ jr_000_1311:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -3512,13 +3494,13 @@ jr_000_1311:
         ld l, $20
         ld [hl], $00
         ld a, $a0
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $30
         ld [hGameState], a
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr z, jr_000_13d4
 
@@ -3530,18 +3512,18 @@ jr_000_13d4:
         ld a, $31
         ld [hGameState], a
         ld a, $80
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $2f
         call Call_000_2032
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_1415
 
         ld a, $0a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld hl, $c201
         dec [hl]
         ld a, [hl]
@@ -3572,12 +3554,12 @@ jr_000_1415:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_1433
 
         ld a, $0a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld hl, $c211
         dec [hl]
         ld l, $01
@@ -3592,12 +3574,12 @@ jr_000_1415:
 
 
 jr_000_1433:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         jr nz, jr_000_1443
 
         ld a, $06
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld hl, $c213
         ld a, [hl]
         xor $01
@@ -3621,12 +3603,12 @@ jr_000_1443:
 
 
 Call_000_145e:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         ret nz
 
         ld a, $0a
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld a, $03
         ld [$dff8], a
         ld b, $02
@@ -3700,8 +3682,8 @@ Call_000_14b3:
         call DisableLCD
         call LoadTileset
         ld de, $4d1f
-        call Call_000_283f
-        call Call_000_17ee
+        call LoadTilemapA
+        call ClearOAM
         ld hl, $c200
         ld de, $2723
         ld c, $02
@@ -3834,7 +3816,7 @@ jr_000_1562:
 
 jr_000_156d:
         push af
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr z, jr_000_1576
 
@@ -3932,9 +3914,9 @@ jr_000_15db:
 
         call DisableLCD
         ld de, $4e87
-        call Call_000_283f
+        call LoadTilemapA
         call Call_000_1960
-        call Call_000_17ee
+        call ClearOAM
         ld hl, $c200
         ld de, $272f
         ld c, $01
@@ -4053,8 +4035,8 @@ jr_000_1671:
         ld [hl], b
         call DisableLCD
         ld de, $4fef
-        call Call_000_283f
-        call Call_000_17ee
+        call LoadTilemapA
+        call ClearOAM
         ld hl, $c200
         ld de, $2735
         ld c, $02
@@ -4301,12 +4283,12 @@ Call_000_17b9:
 Call_000_17ca:
         ld a, [hKeysPressed]
         ld b, a
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
         ld a, $10
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [de]
         xor $80
         ld [de], a
@@ -4336,16 +4318,14 @@ jr_000_17dd:
         ret
 
 
-Call_000_17ee:
+ClearOAM::
         xor a
-        ld hl, $c000
-        ld b, $a0
-
-jr_000_17f4:
+        ld hl, wOAMBuffer
+	length b, wOAMBuffer
+.loop:
         ld [hl+], a
         dec b
-        jr nz, jr_000_17f4
-
+        jr nz, .loop
         ret
 
 
@@ -4566,7 +4546,7 @@ jr_000_18ca:
         ld [$ff00+$ca], a
         xor a
         ld [$ff00+$9c], a
-        ld [$ff00+$c6], a
+        ld [hDemoCountdown], a
         ld a, $01
         ld [$dfe8], a
         ld [$ff00+$c7], a
@@ -4718,7 +4698,7 @@ jr_000_197f:
         jr jr_000_197f
 
 jr_000_1985:
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         ld e, a
         ld d, $00
         add hl, de
@@ -4726,12 +4706,12 @@ jr_000_1985:
         ld d, a
         ld a, [$ff00+$ca]
         ld e, a
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         jr nz, jr_000_19a8
 
         ld a, $07
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [$ff00+$9c]
         xor $01
         ld [$ff00+$9c], a
@@ -4799,7 +4779,7 @@ jr_000_19e3:
 jr_000_19eb:
         ld [$ff00+$aa], a
         ld b, $26
-        ld a, [$ff00+$f4]
+        ld a, [hStartAtLevel10]
         and a
         jr z, jr_000_19f6
 
@@ -4840,7 +4820,7 @@ jr_000_1a0c:
 jr_000_1a14:
         ld [$ff00+$aa], a
         ld b, $26
-        ld a, [$ff00+$f4]
+        ld a, [hStartAtLevel10]
         and a
         jr z, jr_000_1a1f
 
@@ -4869,12 +4849,12 @@ jr_000_1a30:
         call Call_000_1a62
         ld a, $02
         ld [$dfe0], a
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         inc a
         cp $06
         jr z, jr_000_19cc
 
-        ld [$ff00+$c6], a
+        ld [hDemoCountdown], a
         inc de
         ld a, [de]
         cp $60
@@ -4892,15 +4872,15 @@ jr_000_1a4b:
 
 
 Jump_000_1a52:
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         and a
         ret z
 
         ld a, [de]
         call Call_000_1a62
-        ld a, [$ff00+$c6]
+        ld a, [hDemoCountdown]
         dec a
-        ld [$ff00+$c6], a
+        ld [hDemoCountdown], a
         dec de
         jr jr_000_1a4b
 
@@ -4932,7 +4912,7 @@ jr_000_1a63:
         xor a
         ld [$ff00+$e3], a
         ld [$ff00+$e7], a
-        call Call_000_17ee
+        call ClearOAM
         ld a, [$ff00+$c0]
         ld de, $403f
         ld hl, $ffc3
@@ -4949,10 +4929,10 @@ jr_000_1aa5:
         ld [$ff00+$e6], a
         ld a, [hl]
         ld [$ff00+$a9], a
-        call Call_000_283f
+        call LoadTilemapA
         pop de
         ld hl, $9c00
-        call Call_000_2842
+        call LoadTilemap
         ld de, $288d
         ld hl, $9c63
         ld c, $0a
@@ -4964,7 +4944,7 @@ jr_000_1aa5:
         ld [hl], a
         ld h, $9c
         ld [hl], a
-        ld a, [$ff00+$f4]
+        ld a, [hStartAtLevel10]
         and a
         jr z, jr_000_1ad7
 
@@ -5019,7 +4999,7 @@ jr_000_1afe:
         jr z, jr_000_1b3b
 
         ld b, a
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         jr z, jr_000_1b31
 
@@ -5043,7 +5023,7 @@ jr_000_1b3b:
 Call_000_1b43:
         ld a, [$ff00+$a9]
         ld e, a
-        ld a, [$ff00+$f4]
+        ld a, [hStartAtLevel10]
         and a
         jr z, jr_000_1b55
 
@@ -5229,7 +5209,7 @@ jr_000_1bfc:
         ld [hl], a
         push hl
         push af
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr nz, jr_000_1c08
 
@@ -5313,7 +5293,7 @@ Call_000_1c68:
         cp $0f
         jp z, SoftReset
 
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         ret nz
 
@@ -5321,7 +5301,7 @@ Call_000_1c68:
         bit 3, a
         jr z, jr_000_1c4f
 
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr nz, jr_000_1cc5
 
@@ -5373,7 +5353,7 @@ jr_000_1cb5:
         jr jr_000_1cab
 
 jr_000_1cc5:
-        ld a, [$ff00+$cb]
+        ld a, [hMasterSlave]
         cp $29
         ret nz
 
@@ -5384,9 +5364,9 @@ jr_000_1cc5:
 
         ld a, $01
         ld [$df7f], a
-        ld a, [$ff00+$d0]
+        ld a, [hRecvBuffer]
         ld [$ff00+$f2], a
-        ld a, [hSerialByte]
+        ld a, [hSendBuffer]
         ld [$ff00+$f1], a
         call Call_000_1d26
         ret
@@ -5397,34 +5377,34 @@ Call_000_1ce3:
         and a
         ret z
 
-        ld a, [$ff00+$cc]
+        ld a, [hSerialDone]
         jr z, jr_000_1d24
 
         xor a
-        ld [$ff00+$cc], a
-        ld a, [$ff00+$cb]
+        ld [hSerialDone], a
+        ld a, [hMasterSlave]
         cp $29
         jr nz, jr_000_1cfc
 
         ld a, $94
-        ld [hSerialByte], a
-        ld [hSerialByteValid], a
+        ld [hSendBuffer], a
+        ld [hSendBufferValid], a
         pop hl
         ret
 
 
 jr_000_1cfc:
         xor a
-        ld [hSerialByte], a
-        ld a, [$ff00+$d0]
+        ld [hSendBuffer], a
+        ld a, [hRecvBuffer]
         cp $94
         jr z, jr_000_1d24
 
 jr_000_1d05:
         ld a, [$ff00+$f2]
-        ld [$ff00+$d0], a
+        ld [hRecvBuffer], a
         ld a, [$ff00+$f1]
-        ld [hSerialByte], a
+        ld [hSendBuffer], a
         ld a, $02
         ld [$df7f], a
         xor a
@@ -5479,7 +5459,7 @@ jr_000_1d2e:
         ld a, $87
         call Call_000_2032
         ld a, $46
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $0d
         ld [hGameState], a
         ret
@@ -5495,7 +5475,7 @@ jr_000_1d2e:
 jr_000_1d6a:
         xor a
         ld [$ff00+$e3], a
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         ld a, $16
         jr nz, jr_000_1d7e
@@ -5512,7 +5492,7 @@ jr_000_1d7e:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -5546,7 +5526,7 @@ jr_000_1dbd:
 
 jr_000_1dc1:
         ld a, $80
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $80
         ld [$c200], a
         ld [$c210], a
@@ -5618,25 +5598,25 @@ jr_000_1e12:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
         ld a, $01
         ld [$c0c6], a
         ld a, $05
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
         ld hl, $c802
         ld de, $5157
         call Call_000_2858
-        call Call_000_17ee
+        call ClearOAM
         ld hl, $c200
         ld de, $2789
         ld c, $0a
@@ -5687,7 +5667,7 @@ jr_000_1e73:
         ld a, $25
         ld [$ff00+$9e], a
         ld a, $1b
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $23
         ld [hGameState], a
         ret
@@ -5707,7 +5687,7 @@ jr_000_1e96:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         cp $14
         jr z, jr_000_1e96
 
@@ -5754,7 +5734,7 @@ jr_000_1ec5:
         and a
         ret nz
 
-        call Call_000_17ee
+        call ClearOAM
         ld a, [$ff00+$c4]
         cp $05
         ld a, $26
@@ -5805,7 +5785,7 @@ jr_000_1ef0:
         ld hl, $99a5
         call Call_000_2a7e
         xor a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         pop de
         ld hl, $c0a0
         call Call_000_0166
@@ -5862,20 +5842,20 @@ jr_000_1f6d:
         ret
 
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
         ld a, $04
         ld [$dfe8], a
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr z, jr_000_1f92
 
         ld a, $3f
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $1b
-        ld [$ff00+$cc], a
+        ld [hSerialDone], a
         jr jr_000_1fc9
 
 jr_000_1f92:
@@ -5919,7 +5899,7 @@ jr_000_1fcc:
         ld a, b
         ld [$ff00+$f3], a
         ld a, $90
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $34
         ld [hGameState], a
         ret
@@ -6066,11 +6046,11 @@ Call_000_2062:
         ld [hl], a
         and $fc
         ld c, a
-        ld a, [$ff00+$e4]
+        ld a, [hDemoNumber]
         and a
         jr nz, jr_000_207f
 
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr z, jr_000_209c
 
@@ -6160,7 +6140,7 @@ jr_000_20cc:
         ld [$c0c7], a
 
 jr_000_20de:
-        ld a, [$ff00+$a7]
+        ld a, [hDelayCounter2]
         and a
         jr nz, jr_000_210c
 
@@ -6173,7 +6153,7 @@ jr_000_20de:
         jr nz, jr_000_210c
 
         ld a, $03
-        ld [$ff00+$a7], a
+        ld [hDelayCounter2], a
         ld hl, $ffe5
         inc [hl]
         jr jr_000_211d
@@ -6351,7 +6331,7 @@ jr_000_21c6:
         ld a, $03
         ld [$ff00+$98], a
         dec a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, [$ff00+$a0]
         and a
         ret z
@@ -6439,7 +6419,7 @@ Call_000_2240:
         cp $03
         ret nz
 
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -6486,7 +6466,7 @@ jr_000_2271:
         jr z, jr_000_227f
 
         ld a, $0a
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ret
 
 
@@ -6494,7 +6474,7 @@ jr_000_227f:
         xor a
         ld [$ff00+$9c], a
         ld a, $0d
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $01
         ld [$ff00+$e3], a
 
@@ -6536,7 +6516,7 @@ jr_000_22a8:
         jr jr_000_228a
 
 Call_000_22ad:
-        ld a, [$ff00+$a6]
+        ld a, [hDelayCounter]
         and a
         ret nz
 
@@ -6599,16 +6579,14 @@ jr_000_22e7:
         ret
 
 
-Call_000_22f3:
+Call_000_22f3: ; TODO
         ld hl, $c0a3
         xor a
         ld b, $09
-
-jr_000_22f9:
+.loop:
         ld [hl+], a
         dec b
-        jr nz, jr_000_22f9
-
+        jr nz, .loop
         ret
 
 
@@ -6686,7 +6664,7 @@ Call_000_2358:
         ld hl, $9962
         ld de, $c962
         call Call_000_2506
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         ld a, [hGameState]
         jr nz, jr_000_2375
@@ -6841,7 +6819,7 @@ Call_000_242c:
         call Call_000_2506
         xor a
         ld [$ff00+$e3], a
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         ld a, [hGameState]
         jr nz, jr_000_248f
@@ -6872,10 +6850,10 @@ jr_000_245f:
         jr nz, jr_000_248b
 
         ld a, $64
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         ld a, $02
         ld [$dfe8], a
-        ld a, [$ff00+$c5]
+        ld a, [hMultiplayer]
         and a
         jr z, jr_000_247e
 
@@ -7328,7 +7306,7 @@ jr_000_268d:
 
 Jump_000_268e:
         ld a, $21
-        ld [$ff00+$a6], a
+        ld [hDelayCounter], a
         xor a
         ld [$c0c6], a
         ld a, [$c0c5]
@@ -7342,7 +7320,7 @@ Jump_000_268e:
         ret
 
 
-Call_000_26a5:
+Call_000_26a5: ; TODO
         ld hl, $c0ac
         ld b, $1b
         xor a
@@ -7359,7 +7337,6 @@ jr_000_26b4:
         ld [hl+], a
         dec b
         jr nz, jr_000_26b4
-
         ret
 
 
@@ -7412,17 +7389,15 @@ Call_000_26ea:
         ret
 
 
-Call_000_26fd:
+DrawVerticalLine::
         ld b, $20
         ld a, $8e
-        ld de, $0020
-
-jr_000_2704:
+        ld de, BG_MAP_WIDTH
+.loop:
         ld [hl], a
         add hl, de
         dec b
-        jr nz, jr_000_2704
-
+        jr nz, .loop
         ret
 
 
@@ -7668,9 +7643,9 @@ jr_000_27e7:
 	db $00, $20
 
 ClearTilemapA::
-	ld hl, vBGMapA + SCRN_VY_B * SCRN_VX_B - 1
+	ld hl, vBGMapA + BG_MAP_HEIGHT * BG_MAP_WIDTH - 1
 ClearTilemap::
-        ld bc, SCRN_VY_B * SCRN_VX_B
+        ld bc, BG_MAP_HEIGHT * BG_MAP_WIDTH
 .loop:
         ld a, $2f
         ld [hl-], a
@@ -7717,12 +7692,11 @@ LoadFont::
         jr nz, .loop
         ret
 
-Call_000_282b:
+LoadOtherTileset::
         call LoadFont
         ld bc, $0da0
         call CopyBytes ; why no TCO?
         ret
-
 
         ld bc, $1000
 
@@ -7732,32 +7706,30 @@ Call_000_2838:
 GenericEmptyRoutine::
         ret
 
-Call_000_283f:
-        ld hl, $9800
-
-Call_000_2842:
-        ld b, $12
-
-Call_000_2844:
-jr_000_2844:
+LoadTilemapA::
+        ld hl, vBGMapA
+	; fallthrough
+LoadTilemap::
+        ld b, SCREEN_HEIGHT
+	; fallthrough
+CopyRowsToTilemap::
         push hl
-        ld c, $14
+        ld c, SCREEN_WIDTH
 
-jr_000_2847:
+.inner_loop:
         ld a, [de]
         ld [hl+], a
         inc de
         dec c
-        jr nz, jr_000_2847
+        jr nz, .inner_loop
 
         pop hl
         push de
-        ld de, $0020
+        ld de, BG_MAP_WIDTH
         add hl, de
         pop de
         dec b
-        jr nz, jr_000_2844
-
+        jr nz, CopyRowsToTilemap
         ret
 
 
@@ -7798,7 +7770,7 @@ DisableLCD::
 
 .wait_vblank:
         ld a, [rLY]
-        cp SCRN_Y + 1
+        cp SCREEN_HEIGHT_PX + 1
         jr nz, .wait_vblank
 
         ld a, [rLCDC]
@@ -8323,7 +8295,7 @@ jr_000_2abf:
         jr jr_000_2aae
 
 DMA_Routine::
-        ld a, $c0
+        ld a, HIGH(wOAMBuffer)
         ld [rDMA], a
         ld a, $28
 .wait:
@@ -8709,7 +8681,7 @@ jr_000_2c4f:
         ld a, [$ff00+$e2]
         dec l
         rst $28
-        ld a, [$ff00+$f4]
+        ld a, [hStartAtLevel10]
         dec l
         rst $28
         ld a, [rTIMA]
@@ -8736,7 +8708,7 @@ jr_000_2c4f:
         ld l, $ef
         ld a, [$ff00+$be]
         ld l, $ef
-        ld a, [hSerialByteValid]
+        ld a, [hSendBufferValid]
         ld l, $ef
         ld a, [$ff00+$e0]
         ld l, $ef
@@ -9435,7 +9407,7 @@ jr_000_2ffc:
         rst $38
         ld hl, $de32
         ld [$ff00+c], a
-        ld [$ff00+$e4], a
+        ld [hDemoNumber], a
         rst $38
         ld hl, $dc32
         xor $e0

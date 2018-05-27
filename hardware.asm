@@ -750,15 +750,13 @@ PADB_A      EQU $0
 ;*
 ;***************************************************************************
 
-SCRN_X    EQU 160 ; Width of screen in pixels
-SCRN_Y    EQU 144 ; Height of screen in pixels
-SCRN_X_B  EQU 20  ; Width of screen in bytes
-SCRN_Y_B  EQU 18  ; Height of screen in bytes
+SCREEN_WIDTH  EQU 20
+SCREEN_HEIGHT EQU 18
+SCREEN_WIDTH_PX  EQU SCREEN_WIDTH * 8
+SCREEN_HEIGHT_PX EQU SCREEN_HEIGHT * 8
 
-SCRN_VX   EQU 256 ; Virtual width of screen in pixels
-SCRN_VY   EQU 256 ; Virtual height of screen in pixels
-SCRN_VX_B EQU 32  ; Virtual width of screen in bytes
-SCRN_VY_B EQU 32  ; Virtual height of screen in bytes
+BG_MAP_WIDTH  EQU 32
+BG_MAP_HEIGHT EQU 32
 
 ;*
 ;* Nintendo scrolling logo

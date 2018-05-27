@@ -17,3 +17,7 @@ length: MACRO
 ENDM
 
 tile EQUS "+ 16 *"
+
+coord: MACRO
+	ld \1, wTileMap + \3 * BG_MAP_WIDTH + \2
+ENDM
