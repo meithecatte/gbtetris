@@ -5562,8 +5562,8 @@ jr_001_6568:
         jr z, jr_001_657a
 
         xor a
-        ld [$dfe0], a
-        ld [$dfe8], a
+        ld [wPlaySFX], a
+        ld [wPlaySong], a
         ld [$dff0], a
         ld [$dff8], a
 
@@ -5578,8 +5578,8 @@ jr_001_657a:
 
 jr_001_658f:
         xor a
-        ld [$dfe0], a
-        ld [$dfe8], a
+        ld [wPlaySFX], a
+        ld [wPlaySong], a
         ld [$dff0], a
         ld [$dff8], a
         ld [$df7f], a
@@ -5592,7 +5592,7 @@ jr_001_658f:
 jr_001_65a4:
         call MuteSound
         xor a
-        ld [$dfe1], a
+        ld [wCurSFX], a
         ld [$dff1], a
         ld [$dff9], a
         ld hl, $dfbf
@@ -5659,13 +5659,13 @@ Call_001_6603:
 
 
 Call_001_6609:
-        ld a, [$dfe1]
+        ld a, [wCurSFX]
         cp $05
         ret
 
 
 Call_001_660f:
-        ld a, [$dfe1]
+        ld a, [wCurSFX]
         cp $07
         ret
 
@@ -5716,7 +5716,7 @@ Call_001_660f:
 
 Jump_001_664e:
         xor a
-        ld [$dfe1], a
+        ld [wCurSFX], a
         ld [rNR10], a
         ld a, $08
         ld [rNR12], a
@@ -6449,8 +6449,8 @@ jr_001_69cc:
 
 ResetAudio::
         xor a
-        ld [$dfe1], a
-        ld [$dfe9], a
+        ld [wCurSFX], a
+        ld [wCurSong], a
         ld [$dff1], a
         ld [$dff9], a
         ld [$df9f], a
@@ -6477,7 +6477,7 @@ MuteSound::
         ret
 
 Call_001_6a0e:
-        ld de, $dfe0
+        ld de, wPlaySFX
         ld a, [de]
         and a
         jr z, jr_001_6a21
@@ -6538,7 +6538,7 @@ jr_001_6a4e:
 
 
 Call_001_6a52:
-        ld hl, $dfe8
+        ld hl, wPlaySong
         ld a, [hl+]
         and a
         ret z
@@ -6557,7 +6557,7 @@ Call_001_6a52:
 
 
 Call_001_6a6d:
-        ld a, [$dfe9]
+        ld a, [wCurSong]
         and a
         ret z
 
@@ -6589,7 +6589,7 @@ jr_001_6a7e:
 
 
 Call_001_6a96:
-        ld a, [$dfe9]
+        ld a, [wCurSong]
         and a
         jr z, jr_001_6ad9
 
@@ -6945,14 +6945,14 @@ jr_001_6c55:
         jr jr_001_6c41
 
 jr_001_6c6c:
-        ld hl, $dfe9
+        ld hl, wCurSong
         ld [hl], $00
         call ResetAudio ; why no TCO?
         ret
 
 
 Call_001_6c75:
-        ld hl, $dfe9
+        ld hl, wCurSong
         ld a, [hl]
         and a
         ret z

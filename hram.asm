@@ -1,11 +1,11 @@
-hOAMDMA EQU $ffb6
-
 hKeysHeld      EQU $ff80
 hKeysPressed   EQU $ff81
 hVBlankOccured EQU $ff85
 hSavedIE       EQU $ffa1
 hDelayCounter  EQU $ffa6
 hDelayCounter2 EQU $ffa7
+
+hOAMDMA EQU $ffb6
 
 hMultiplayer   EQU $ffc5
 hDemoCountdown EQU $ffc6

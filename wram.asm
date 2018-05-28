@@ -14,5 +14,15 @@ wStackEnd::
 
 SECTION "Audio RAM", WRAM0[$df00]
 wAudio::
-	ds $100
+	ds $e0
+
+wPlaySFX:: db
+wCurSFX:: db
+
+	ds 6
+
+wPlaySong:: db
+wCurSong:: db
+
+	ds $16
 wAudioEnd::
