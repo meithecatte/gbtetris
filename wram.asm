@@ -2,11 +2,15 @@ SECTION "OAM Buffer", WRAM0[$c000]
 wOAMBuffer:: ds 160
 wOAMBuffer_End::
 
-	ds $760
-
-wTileMap:: ds BG_MAP_WIDTH * BG_MAP_HEIGHT
-wTileMap_End:
-
+SECTION "Sprites", WRAM0[$c200]
+; offset 0: SPRITE_HIDDEN/SPRITE_VISIBLE
+; offset 1: Y
+; offset 2: X
+; offset 3: sprite ID
+; offset 4: below BG
+; offset 5: flip
+; offset 6: flags
+wSpriteList::
 SECTION "Stack", WRAM0[$cf00]
 wStack::
 	ds $100

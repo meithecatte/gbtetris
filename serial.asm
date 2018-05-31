@@ -40,7 +40,7 @@ SerialTitleScreen::
 
         ld a, SERIAL_MASTER
         ld [hMasterSlave], a
-        ld a, SC_MASTER
+        ld a, SCF_MASTER
         jr .done
 
 .not_master:
@@ -71,7 +71,7 @@ SerialState2::
         ld [rSB], a
         ld a, $ff
         ld [hSendBuffer], a
-        ld a, SC_RQ
+        ld a, SCF_RQ
         ld [rSC], a
         ret
 
@@ -86,12 +86,12 @@ SerialState3::
         ld [rSB], a
         ei
         call DelayLoop
-        ld a, SC_RQ
+        ld a, SCF_RQ
         ld [rSC], a
         ret
 
         ld a, [hSerialState]
-        cp $02
+        cp SERIAL_STATE_2
         ret nz
 
         xor a

@@ -124,7 +124,7 @@ VBlankInterrupt::
 	ld a, [hSendBuffer]
 	ld [rSB], a
 	ld hl, rSC
-	ld [hl], SC_RQ | SC_MASTER
+	ld [hl], SCF_RQ | SCF_MASTER
 
 .serial_done:
 	call Call_000_2240
@@ -292,10 +292,10 @@ SoftReset:
 	call JumpResetAudio
 	ld a, IEF_SERIAL | IEF_VBLANK
 	ld [rIE], a
-	ld a, $37 ; TODO
-	ld [$ff00+$c0], a
-	ld a, $1c
-	ld [$ff00+$c1], a
+	ld a, GAME_TYPE_A
+	ld [hGameType], a
+	ld a, MUSIC_TYPE_A
+	ld [hMusicType], a
 	ld a, STATE_LOAD_COPYRIGHT
 	ld [hGameState], a
 	ld a, LCDCF_ON
@@ -357,17 +357,17 @@ HandleGameState::
 	dw HandleState5 ; 5
 	dw LoadTitlescreen ; STATE_LOAD_TITLESCREEN
 	dw HandleTitlescreen ; STATE_TITLESCREEN
-	dw HandleState8 ; STATE_08
+	dw LoadModeSelect ; STATE_LOAD_MODE_SELECT
 	dw GenericEmptyRoutine2 ; 9
 	dw HandleState10 ; STATE_10
 	dw HandleState11 ; 11
 	dw HandleState12 ; 12
 	dw HandleState13 ; 13
-	dw HandleState14 ; 14
-	dw HandleState15 ; 15
-	dw HandleState16 ; 16
+	dw HandleModeSelect ; STATE_MODE_SELECT
+	dw HandleMusicSelect ; 15
+	dw LoadTypeAMenu ; 16
 	dw HandleState17 ; 17
-	dw HandleState18 ; 18
+	dw LoadTypeBMenu ; 18
 	dw HandleState19 ; 19
 	dw HandleState20 ; 20
 	dw HandleState21 ; 21
@@ -391,7 +391,7 @@ HandleGameState::
 	dw HandleState39
 	dw HandleState40
 	dw HandleState41
-	dw HandleState42
+	dw LoadMultiplayerMusicSelect
 	dw HandleState43
 	dw HandleState44
 	dw HandleState45
@@ -403,13 +403,13 @@ HandleGameState::
 	dw HandleState51
 	dw HandleState52
 IF DEF(INTERNATIONAL)
-	dw $03a0
+	dw MoreCopyrightScreenDelay
 ENDC
 	dw GenericEmptyRoutine
 
 LoadCopyrightScreen::
 	call DisableLCD
-	call LoadOtherTileset
+	call LoadTitlescreenTileset
 	ld de, CopyrightTilemap
 	call LoadTilemapA
 	call ClearOAM
@@ -477,21 +477,21 @@ ENDC
 	ld [$ff00+$c7], a
 	call Call_000_22f3
 	call Call_000_26a5
-	call LoadOtherTileset
+	call LoadTitlescreenTileset
 
-	ld hl, wTileMap ; TODO
-.clear_screen:
+	ld hl, $c800 ; TODO
+.clear_unk:
 	ld a, $2f
 	ld [hl+], a
 	ld a, h
-	cp HIGH(wTileMap_End)
-	jr nz, .clear_screen
+	cp $cc
+	jr nz, .clear_unk
 
-	coord hl, 1, 0
-	call DrawVerticalLine
-	coord hl, 12, 0
-	call DrawVerticalLine
-	coord hl, 1, 18
+	ld hl, $c801
+	call unk26fd
+	ld hl, $c80c
+	call unk26fd
+	ld hl, $ca41
 	ld b, 12
 	ld a, $8e
 
@@ -596,7 +596,7 @@ HandleTitlescreen::
 	call DelayLoop
 	ld a, SERIAL_SLAVE ; if any byte is sent, respond
 	ld [rSB], a
-	ld a, SC_RQ
+	ld a, SCF_RQ
 	ld [rSC], a
 	ld a, [hSerialDone]
 	and a
@@ -627,20 +627,20 @@ HandleTitlescreen::
 	ret z
 
 	and a
-	ld a, STATE_08 ; this should be set just before jumping to .done - that way you don't need to save it
+	ld a, STATE_LOAD_MODE_SELECT ; this should be set just before jumping to .done - that way you don't need to save it
 	jr z, .start_singleplayer
 
 	ld a, b
 	cp START
 	ret nz
 
-	ld a, [hMasterSlave] ; TODO
+	ld a, [hMasterSlave]
 	cp SERIAL_MASTER
 	jr z, .start_multiplayer
 
 	ld a, SERIAL_MASTER
 	ld [rSB], a
-	ld a, SC_RQ | SC_MASTER
+	ld a, SCF_RQ | SCF_MASTER
 	ld [rSC], a
 
 .wait_serial:
@@ -653,15 +653,15 @@ HandleTitlescreen::
 	jr z, .go_single
 
 .start_multiplayer
-	ld a, STATE_42
+	ld a, STATE_LOAD_MULTIPLAYER_MUSIC_SELECT
 
 .done:
 	ld [hGameState], a
 	xor a
 	ld [hDelayCounter], a
-	ld [$ff00+$c2], a
-	ld [$ff00+$c3], a
-	ld [$ff00+$c4], a
+	ld [hTypeALevel], a
+	ld [hTypeBLevel], a
+	ld [hTypeBHigh], a
 	ld [hDemoNumber], a
 	ret
 
@@ -857,26 +857,25 @@ Call_000_0620:
 	ld [hKeysHeld], a
 	ret
 
+LoadMultiplayerMusicSelect_Slave::
+	ld hl, rSC
+	set SCB_RQ, [hl]
+	jr LoadMultiplayerMusicSelect.continue
 
-jr_000_062d:
-	ld hl, $ff02
-	set 7, [hl]
-	jr jr_000_063e
-
-HandleState42::
-	ld a, $03
+LoadMultiplayerMusicSelect::
+	ld a, SERIAL_STATE_3
 	ld [hSerialState], a
 	ld a, [hMasterSlave]
-	cp $29
-	jr nz, jr_000_062d
+	cp SERIAL_MASTER
+	jr nz, LoadMultiplayerMusicSelect_Slave ; put the _Slave part below and do a jr z, .continue
 
-jr_000_063e:
-	call Call_000_14b3
-	ld a, $80
-	ld [$c210], a
-	call Call_000_26c5
-	ld [hSendBufferValid], a
-	xor a
+.continue:
+	call LoadModeSelectScreen
+	ld a, SPRITE_HIDDEN
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a ; hide the game type cursor
+	call UpdateTwoSprites
+	ld [hSendBufferValid], a ; always set to 0 by UpdateTwoSprites...
+	xor a ; so this is pointless
 	ld [rSB], a
 	ld [hSendBuffer], a
 	ld [$ff00+$dc], a
@@ -885,42 +884,41 @@ jr_000_063e:
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
 	ld [$ff00+$e3], a
-	call $7ff3
-	ld a, $2b
+	call JumpResetAudio
+	ld a, STATE_43
 	ld [hGameState], a
 	ret
 
 HandleState43::
 	ld a, [hMasterSlave]
-	cp $29
-	jr z, jr_000_0680
+	cp SERIAL_MASTER
+	jr z, .maybe_handle_movement
 
-	ld a, [$ff00+$f0]
+	ld a, [hMultiplayerNewMusic]
 	and a
-	jr z, jr_000_068d
+	jr z, .no_movement
 
 	xor a
-	ld [$ff00+$f0], a
-	ld de, $c201
-	call Call_000_14f6
-	call Call_000_157b
-	call Call_000_26c5
-	jr jr_000_068d
+	ld [hMultiplayerNewMusic], a
+	ld de, wSpriteList sprite 0 + SPRITE_OFFSET_Y
+	call UpdateMusicCursor_NoSFX
+	call PlaySelectedMusic
+	call UpdateTwoSprites
+	jr .no_movement
 
-jr_000_0680:
+.maybe_handle_movement:
 	ld a, [hKeysPressed]
-	bit 0, a
-	jr nz, jr_000_068d
+	bit A_BUTTON_BIT, a
+	jr nz, .no_movement
 
-	bit 3, a
-	jr nz, jr_000_068d
+	bit START_BIT, a
+	jr nz, .no_movement
 
-	call HandleState15
-
-jr_000_068d:
+	call HandleMusicSelect
+.no_movement:
 	ld a, [hMasterSlave]
-	cp $29
-	jr z, jr_000_06b1
+	cp SERIAL_MASTER
+	jr z, .handle_transfer_as_master
 
 	ld a, [hSerialDone]
 	and a
@@ -928,31 +926,30 @@ jr_000_068d:
 
 	xor a
 	ld [hSerialDone], a
-	ld a, $39
+	ld a, SERIAL_MUSIC_ACK
 	ld [hSendBuffer], a
 	ld a, [hRecvBuffer]
-	cp $50
-	jr z, jr_000_06d1
+	cp SERIAL_MUSIC_DONE
+	jr z, .decided_and_serial_completed
 
-	ld b, a
-	ld a, [$ff00+$c1]
+	ld b, a ; ld hl, hMusicType / cp [hl] to save on ld a, b below
+	ld a, [hMusicType]
 	cp b
 	ret z
 
 	ld a, b
-	ld [$ff00+$c1], a
-	ld a, $01
-	ld [$ff00+$f0], a
+	ld [hMusicType], a
+	ld a, 1 ; hMultiplayerNewMusic is only checked for non-zero, so you don't need to set a to 1
+	ld [hMultiplayerNewMusic], a
 	ret
 
-
-jr_000_06b1:
+.handle_transfer_as_master:
 	ld a, [hKeysPressed]
-	bit 3, a
-	jr nz, jr_000_06d9
+	bit START_BIT, a
+	jr nz, .decided_as_master
 
-	bit 0, a
-	jr nz, jr_000_06d9
+	bit A_BUTTON_BIT, a
+	jr nz, .decided_as_master
 
 	ld a, [hSerialDone]
 	and a
@@ -961,40 +958,38 @@ jr_000_06b1:
 	xor a
 	ld [hSerialDone], a
 	ld a, [hSendBuffer]
-	cp $50
-	jr z, jr_000_06d1
+	cp SERIAL_MUSIC_DONE
+	jr z, .decided_and_serial_completed
 
-	ld a, [$ff00+$c1]
+	ld a, [hMusicType]
 
-jr_000_06ca:
+.send_and_end:
 	ld [hSendBuffer], a
-	ld a, $01
+	ld a, 1
 	ld [hSendBufferValid], a
 	ret
 
-
-jr_000_06d1:
+.decided_and_serial_completed:
 	call ClearOAM
-	ld a, $16
+	ld a, STATE_22
 	ld [hGameState], a
 	ret
 
+.decided_as_master:
+	ld a, SERIAL_MUSIC_DONE
+	jr .send_and_end
 
-jr_000_06d9:
-	ld a, $50
-	jr jr_000_06ca
-
-jr_000_06dd:
-	ld hl, $ff02
-	set 7, [hl]
+HandleState22_unk06dd::
+	ld hl, rSC
+	set SCB_RQ, [hl]
 	jr jr_000_0703
 
 HandleState22::
-	ld a, $03
+	ld a, SERIAL_STATE_3
 	ld [hSerialState], a
 	ld a, [hMasterSlave]
-	cp $29
-	jr nz, jr_000_06dd
+	cp SERIAL_MASTER
+	jr nz, HandleState22_unk06dd
 
 	call Call_000_0b10
 	call Call_000_0b10
@@ -1011,12 +1006,12 @@ jr_000_06fc:
 jr_000_0703:
 	call DisableLCD
 	call LoadTileset
-	ld de, $525c
+	ld de, MultiplayerMenuTilemap
 	call LoadTilemapA
 	call ClearOAM
 	ld a, $2f
 	call Call_000_2038
-	ld a, $03
+	ld a, 3 ; why use a different constant than usual? also Call_000_2038 does not modify A.
 	ld [hSendBufferValid], a
 	xor a
 	ld [rSB], a
@@ -1043,7 +1038,7 @@ jr_000_0735:
 	and a
 	jp nz, Jump_000_07da
 
-	call Call_000_157b
+	call PlaySelectedMusic
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
 	ld hl, $c080
@@ -1057,9 +1052,9 @@ jr_000_074e:
 	ld hl, $c200
 	ld de, $2741
 	ld c, $02
-	call Call_000_17da
+	call LoadSprites
 	call Call_000_087b
-	call Call_000_26c5
+	call UpdateTwoSprites
 	xor a
 	ld [$ff00+$d7], a
 	ld [$ff00+$d8], a
@@ -1137,7 +1132,7 @@ jr_000_07b0:
 
 jr_000_07b7:
 	ld de, $c210
-	call Call_000_17ca
+	call HandleBlinkingCursor
 	ld hl, $ffad
 	jr jr_000_082a
 
@@ -1216,7 +1211,7 @@ jr_000_0819:
 
 jr_000_0821:
 	ld de, $c200
-	call Call_000_17ca
+	call HandleBlinkingCursor
 	ld hl, $ffac
 
 jr_000_082a:
@@ -1252,7 +1247,7 @@ jr_000_0848:
 
 jr_000_084e:
 	call Call_000_087b
-	call Call_000_26c5
+	call UpdateTwoSprites
 	ret
 
 
@@ -1783,40 +1778,40 @@ Call_000_0b10:
 	ld c, a
 	ld h, $03
 
-jr_000_0b19:
+.outer_loop:
 	ld a, [rDIV]
 	ld b, a
 
-jr_000_0b1c:
+.zero_and_loop:
 	xor a
 
-jr_000_0b1d:
+.loop:
 	dec b
-	jr z, jr_000_0b2a
+	jr z, .break_inner
 
 	inc a
 	inc a
 	inc a
 	inc a
 	cp $1c
-	jr z, jr_000_0b1c
+	jr z, .zero_and_loop
 
-	jr jr_000_0b1d
+	jr .loop
 
-jr_000_0b2a:
+.break_inner:
 	ld d, a
 	ld a, [$ff00+$ae]
 	ld e, a
 	dec h
-	jr z, jr_000_0b38
+	jr z, .break_outer
 
 	or d
 	or c
 	and $fc
 	cp c
-	jr z, jr_000_0b19
+	jr z, .outer_loop
 
-jr_000_0b38:
+.break_outer:
 	ld a, d
 	ld [$ff00+$ae], a
 	ld a, e
@@ -1845,9 +1840,9 @@ IF DEF(INTERNATIONAL)
 	ld [$c210], a
 .skip
 ENDC
-	call Call_000_26d7
-	call Call_000_26ea
-	call Call_000_157b
+	call UpdateFirstSprite
+	call UpdateSecondSprite
+	call PlaySelectedMusic
 	xor a
 	ld [$ff00+$d6], a
 	ld a, $1a
@@ -1995,7 +1990,7 @@ jr_000_0c19:
 	cp $08
 	ret nz
 
-	call Call_000_157b
+	call PlaySelectedMusic
 	ret
 
 
@@ -2318,7 +2313,7 @@ jr_000_0da4:
 jr_000_0db3:
 	ld hl, $c200
 	ld c, $03
-	call Call_000_17da
+	call LoadSprites
 	ld a, $19
 	ld [hDelayCounter], a
 	ld a, [$ff00+$ef]
@@ -2330,7 +2325,7 @@ jr_000_0db3:
 
 jr_000_0dc9:
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, $20
 	ld [hGameState], a
 	ld a, $09
@@ -2383,7 +2378,7 @@ HandleState32::
 jr_000_0e11:
 	call Call_000_0e21
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 
@@ -2500,7 +2495,7 @@ jr_000_0e95:
 jr_000_0ea4:
 	ld hl, $c200
 	ld c, $02
-	call Call_000_17da
+	call LoadSprites
 	ld a, $19
 	ld [hDelayCounter], a
 	ld a, [$ff00+$ef]
@@ -2512,7 +2507,7 @@ jr_000_0ea4:
 
 jr_000_0eba:
 	ld a, $02
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, $21
 	ld [hGameState], a
 	ld a, $09
@@ -2565,7 +2560,7 @@ HandleState33::
 jr_000_0f02:
 	call Call_000_0f12
 	ld a, $02
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 
@@ -3153,9 +3148,9 @@ HandleState38::
 	ld de, $27c5
 	ld hl, $c200
 	ld c, $03
-	call Call_000_17da
+	call LoadSprites
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, $db
 	ld [rLCDC], a
 	ld a, $bb
@@ -3272,7 +3267,7 @@ HandleState2::
 	ld l, $20
 	ld [hl], $80
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, $03
 	ld [hGameState], a
 	ld a, $04
@@ -3322,7 +3317,7 @@ jr_000_1301:
 
 jr_000_1311:
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 HandleState44::
@@ -3412,11 +3407,11 @@ HandleState46::
 	ld de, $27d7
 	ld hl, $c200
 	ld c, $03
-	call Call_000_17da
+	call LoadSprites
 	ld a, [$ff00+$f3]
 	ld [$c203], a
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	xor a
 	ld [$ff00+$f3], a
 	ld a, $db
@@ -3486,7 +3481,7 @@ HandleState49::
 	ld l, $20
 	ld [hl], $80
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, $32
 	ld [hGameState], a
 	ld a, $04
@@ -3532,7 +3527,7 @@ jr_000_1433:
 
 jr_000_1443:
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 HandleState51::
@@ -3568,7 +3563,7 @@ jr_000_1470:
 	jr nz, jr_000_1470
 
 	ld a, $03
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 
@@ -3615,8 +3610,7 @@ jr_000_149b:
 
 	ret
 
-
-HandleState8::
+LoadModeSelect::
 	ld a, IEF_VBLANK
 	ld [rIE], a
 	xor a
@@ -3624,254 +3618,241 @@ HandleState8::
 	ld [rSC], a
 	ld [rIF], a
 
-Call_000_14b3:
+LoadModeSelectScreen::
 	call DisableLCD
 	call LoadTileset
 	ld de, ModeSelectTilemap
 	call LoadTilemapA
 	call ClearOAM
-	ld hl, $c200
-	ld de, $2723
-	ld c, $02
-	call Call_000_17da
-	ld de, $c201
-	call Call_000_14f1
-	ld a, [$ff00+$c0]
-	ld e, $12
+	ld hl, wSpriteList
+	ld de, ModeSelectSpriteList
+	ld c, 2
+	call LoadSprites
+	ld de, wSpriteList sprite 0 + SPRITE_OFFSET_Y
+	call UpdateMusicCursor
+	ld a, [hGameType]
+	ld e, LOW(wSpriteList sprite 1 + SPRITE_OFFSET_X)
 	ld [de], a
+	assert SPRITE_OFFSET_X + 1 == SPRITE_OFFSET_ID
 	inc de
-	cp $37
-	ld a, $1c
-	jr z, jr_000_14e1
-
-	ld a, $1d
-
-jr_000_14e1:
+	cp GAME_TYPE_A
+	ld a, SPRITE_TYPE_A
+	jr z, .got_game_type_sprite
+	ld a, SPRITE_TYPE_B
+.got_game_type_sprite
 	ld [de], a
-	call Call_000_26c5
-	call Call_000_157b
+	call UpdateTwoSprites
+	call PlaySelectedMusic
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
-	ld a, $0e
+	ld a, STATE_MODE_SELECT
 	ld [hGameState], a
 GenericEmptyRoutine2::
 	ret
 
-Call_000_14f1:
-	ld a, $01
+; de = sprite list pointer + SPRITE_OFFSET_Y
+UpdateMusicCursor::
+	ld a, SFX_CURSOR_BEEP
 	ld [wPlaySFX], a
 
-Call_000_14f6:
-	ld a, [$ff00+$c1]
+UpdateMusicCursor_NoSFX::
+	ld a, [hMusicType]
 	push af
-	sub $1c
+	sub MUSIC_TYPE_A
 	add a
 	ld c, a
-	ld b, $00
-	ld hl, $150c
+	ld b, 0
+	ld hl, MusicCursorPositions
 	add hl, bc
-	ld a, [hl+]
+
+	ld a, [hl+] ; Y
 	ld [de], a
 	inc de
-	ld a, [hl]
+
+	ld a, [hl] ; X
 	ld [de], a
 	inc de
+
 	pop af
-	ld [de], a
+	ld [de], a ; sprite ID
 	ret
 
-	ld [hl], b
-	scf
-	ld [hl], b
-	ld [hl], a
-	add b
-	scf
-	add b
-	ld [hl], a
+MusicCursorPositions::
+	db 112, 55  ; y, x
+	db 112, 119
+	db 128, 55
+	db 128, 119
 
-HandleState15::
-	ld de, $c200
-	call Call_000_17ca
-	ld hl, $ffc1
+HandleMusicSelect::
+	ld de, wSpriteList sprite 0
+	call HandleBlinkingCursor
+	ld hl, hMusicType
 	ld a, [hl]
-	bit 3, b
-	jp nz, Jump_000_15c7
+	bit START_BIT, b
+	jp nz, HandleModeSelect.pressed_start
 
-	bit 0, b
-	jp nz, Jump_000_15c7
+	bit A_BUTTON_BIT, b
+	jp nz, HandleModeSelect.pressed_start
 
-	bit 1, b
-	jr nz, jr_000_156d
+	bit B_BUTTON_BIT, b
+	jr nz, .go_back
 
-jr_000_152c:
-	inc e
-	bit 4, b
-	jr nz, jr_000_1557
+.no_going_back:
+	inc e ; now DE points to Y coord
+	bit D_RIGHT_BIT, b
+	jr nz, .pressed_right
 
-	bit 5, b
-	jr nz, jr_000_1562
+	bit D_LEFT_BIT, b
+	jr nz, .pressed_left
 
-	bit 6, b
-	jr nz, jr_000_154f
+	bit D_UP_BIT, b
+	jr nz, .pressed_up
 
-	bit 7, b
-	jp z, Jump_000_15c3
+	bit D_DOWN_BIT, b
+	jp z, HandleModeSelect.end ; use local .end to save a byte
 
-	cp $1e
-	jr nc, jr_000_154b
-
-	add $02
-
-jr_000_1544:
+	cp MUSIC_TYPE_C
+	jr nc, .end
+	add 2
+.update_cursor:
 	ld [hl], a
-	call Call_000_14f1
-	call Call_000_157b
+	call UpdateMusicCursor
+	call PlaySelectedMusic
 
-jr_000_154b:
-	call Call_000_26c5
+.end: ; sometimes you use HandleModeSelect.end, sometimes you use your own. And it doesn't make sense to do so since you can just JUMP TO UpdateTwoSprites!
+	call UpdateTwoSprites
 	ret
 
+.pressed_up:
+	cp MUSIC_TYPE_C
+	jr c, .end
+	sub 2
+	jr .update_cursor
 
-jr_000_154f:
-	cp $1e
-	jr c, jr_000_154b
-
-	sub $02
-	jr jr_000_1544
-
-jr_000_1557:
-	cp $1d
-	jr z, jr_000_154b
-
-	cp $1f
-	jr z, jr_000_154b
-
+.pressed_right:
+	cp MUSIC_TYPE_B
+	jr z, .end
+	cp MUSIC_OFF
+	jr z, .end
 	inc a
-	jr jr_000_1544
+	jr .update_cursor
 
-jr_000_1562:
-	cp $1c
-	jr z, jr_000_154b
-
-	cp $1e
-	jr z, jr_000_154b
-
+.pressed_left:
+	cp MUSIC_TYPE_A
+	jr z, .end
+	cp MUSIC_TYPE_C
+	jr z, .end
 	dec a
-	jr jr_000_1544
+	jr .update_cursor
 
-jr_000_156d:
+.go_back:
 	push af
 	ld a, [hMultiplayer]
 	and a
-	jr z, jr_000_1576
+	jr z, .can_go_back
 
 	pop af
-	jr jr_000_152c
+	jr .no_going_back ; The concept of game type A/B does not exist on multiplayer
 
-jr_000_1576:
+.can_go_back:
 	pop af
-	ld a, $0e
-	jr jr_000_15d6
+	ld a, STATE_MODE_SELECT
+	jr HandleModeSelect.got_new_state
 
-Call_000_157b:
-	ld a, [$ff00+$c1]
-	sub $17
-	cp $08
-	jr nz, jr_000_1585
-
-	ld a, $ff
-
-jr_000_1585:
+PlaySelectedMusic::
+	ld a, [hMusicType]
+	sub MUSIC_TYPE_A - SONG_A
+	cp SONG_C + 1
+	jr nz, .got_song_id
+	ld a, SONG_STOP
+.got_song_id:
 	ld [wPlaySong], a
 	ret
 
-HandleState14::
-	ld de, $c210
-	call Call_000_17ca
-	ld hl, $ffc0
+HandleModeSelect::
+	ld de, wSpriteList sprite 1
+	call HandleBlinkingCursor
+	ld hl, hGameType
 	ld a, [hl]
-	bit 3, b
-	jr nz, jr_000_15c7
+	bit START_BIT, b
+	jr nz, .pressed_start
 
-	bit 0, b
-	jr nz, jr_000_15db
+	bit A_BUTTON_BIT, b
+	jr nz, .pressed_a
 
 	inc e
-	inc e
-	bit 4, b
-	jr nz, jr_000_15af
+	inc e ; now DE is on X coord of cursor
+	bit D_RIGHT_BIT, b
+	jr nz, .pressed_right
 
-	bit 5, b
-	jr z, jr_000_15c3
+	bit D_LEFT_BIT, b
+	jr z, .end ; no interesting button presses
 
-	cp $37
-	jr z, jr_000_15c3
+	; pressed left
+	cp GAME_TYPE_A
+	jr z, .end
 
-	ld a, $37
-	ld b, $1c
-	jr jr_000_15b7
+	ld a, GAME_TYPE_A
+	ld b, SPRITE_TYPE_A
+	jr .update_cursor
 
-jr_000_15af:
-	cp $77
-	jr z, jr_000_15c3
+.pressed_right:
+	cp GAME_TYPE_B
+	jr z, .end
 
-	ld a, $77
-	ld b, $1d
+	ld a, GAME_TYPE_B
+	ld b, SPRITE_TYPE_B
 
-jr_000_15b7:
+.update_cursor:
 	ld [hl], a
-	push af
-	ld a, $01
+	push af ; write to [de] sooner so you don't have to save this
+	ld a, SFX_CURSOR_BEEP
 	ld [wPlaySFX], a
 	pop af
-	ld [de], a
+	ld [de], a ; X coord
 	inc de
 	ld a, b
 
-jr_000_15c2:
-	ld [de], a
+.write_sprite_param:
+	ld [de], a ; sprite ID when fallthrough, but hidden/visible when jumping from .got_new_state
 
-Jump_000_15c3:
-jr_000_15c3:
-	call Call_000_26c5
+.end:
+	call UpdateTwoSprites ; why no TCO?
 	ret
 
-
-Jump_000_15c7:
-jr_000_15c7:
-	ld a, $02
+.pressed_start:
+	ld a, SFX_CONFIRM_BEEP
 	ld [wPlaySFX], a
-	ld a, [$ff00+$c0]
-	cp $37
-	ld a, $10
-	jr z, jr_000_15d6
+	ld a, [hGameType]
+	cp GAME_TYPE_A
+	ld a, STATE_LOAD_TYPE_A_MENU
+	jr z, .got_new_state
 
-	ld a, $12
-
-jr_000_15d6:
+	ld a, STATE_LOAD_TYPE_B_MENU
+.got_new_state:
 	ld [hGameState], a
 	xor a
-	jr jr_000_15c2
+	jr .write_sprite_param
 
-jr_000_15db:
-	ld a, $0f
-	jr jr_000_15d6
+.pressed_a:
+	ld a, STATE_MUSIC_SELECT
+	jr .got_new_state
 
-HandleState16::
+LoadTypeAMenu::
 	call DisableLCD
-	ld de, $4e87
+	ld de, TypeATilemap
 	call LoadTilemapA
 	call Call_000_1960
 	call ClearOAM
 	ld hl, $c200
 	ld de, $272f
 	ld c, $01
-	call Call_000_17da
+	call LoadSprites
 	ld de, $c201
 	ld a, [$ff00+$c2]
 	ld hl, $1679
 	call Call_000_17b2
-	call Call_000_26c5
+	call UpdateTwoSprites
 	call Call_000_17f9
 	call Call_000_192e
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
@@ -3882,7 +3863,7 @@ HandleState16::
 	and a
 	jr nz, jr_000_161e
 
-	call Call_000_157b
+	call PlaySelectedMusic
 	ret
 
 
@@ -3895,7 +3876,7 @@ jr_000_1620:
 
 HandleState17::
 	ld de, $c200
-	call Call_000_17ca
+	call HandleBlinkingCursor
 	ld hl, $ffc2
 	ld a, $0a
 	bit 3, b
@@ -3941,7 +3922,7 @@ jr_000_165a:
 	call Call_000_17f9
 
 jr_000_1667:
-	call Call_000_26c5
+	call UpdateTwoSprites
 	ret
 
 
@@ -3980,7 +3961,7 @@ jr_000_1671:
 	ld d, b
 	ld [hl], b
 
-HandleState18::
+LoadTypeBMenu::
 	call DisableLCD
 	ld de, $4fef
 	call LoadTilemapA
@@ -3988,7 +3969,7 @@ HandleState18::
 	ld hl, $c200
 	ld de, $2735
 	ld c, $02
-	call Call_000_17da
+	call LoadSprites
 	ld de, $c201
 	ld a, [$ff00+$c3]
 	ld hl, $1736
@@ -3997,7 +3978,7 @@ HandleState18::
 	ld a, [$ff00+$c4]
 	ld hl, $17a5
 	call Call_000_17b2
-	call Call_000_26c5
+	call UpdateTwoSprites
 	call Call_000_1813
 	call Call_000_192e
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
@@ -4008,7 +3989,7 @@ HandleState18::
 	and a
 	jr nz, jr_000_16d4
 
-	call Call_000_157b
+	call PlaySelectedMusic
 	ret
 
 
@@ -4028,7 +4009,7 @@ jr_000_16d9:
 
 HandleState19::
 	ld de, $c200
-	call Call_000_17ca
+	call HandleBlinkingCursor
 	ld hl, $ffc3
 	ld a, $0a
 	bit 3, b
@@ -4075,7 +4056,7 @@ jr_000_1717:
 	call Call_000_1813
 
 jr_000_1724:
-	call Call_000_26c5
+	call UpdateTwoSprites
 	ret
 
 
@@ -4122,7 +4103,7 @@ jr_000_174a:
 
 HandleState20::
 	ld de, $c210
-	call Call_000_17ca
+	call HandleBlinkingCursor
 	ld hl, $ffc4
 	ld a, $0a
 	bit 3, b
@@ -4172,7 +4153,7 @@ jr_000_1786:
 	call Call_000_1813
 
 jr_000_1793:
-	call Call_000_26c5
+	call UpdateTwoSprites
 	ret
 
 
@@ -4227,25 +4208,26 @@ Call_000_17b9:
 	ld [de], a
 	ret
 
-
-Call_000_17ca:
+HandleBlinkingCursor::
 	ld a, [hKeysPressed]
 	ld b, a
 	ld a, [hDelayCounter]
 	and a
 	ret nz
 
-	ld a, $10
+	ld a, 16
 	ld [hDelayCounter], a
 	ld a, [de]
 	xor $80
 	ld [de], a
 	ret
 
-
-Call_000_17da::
+; hl = wSpriteList pointer
+; de = ROM list
+; c = sprite count
+LoadSprites::
 	push hl
-	ld b, $06
+	ld b, 6
 
 .inner_loop:
 	ld a, [de]
@@ -4255,15 +4237,14 @@ Call_000_17da::
 	jr nz, .inner_loop
 
 	pop hl
-	ld a, $10
+	ld a, SPRITE_SIZE
 	add l
 	ld l, a
 	dec c
-	jr nz, Call_000_17da
+	jr nz, LoadSprites
 
-	ld [hl], $80
+	ld [hl], SPRITE_HIDDEN
 	ret
-
 
 ClearOAM::
 	xor a
@@ -4700,7 +4681,7 @@ jr_000_19a8:
 jr_000_19cc:
 	ld a, [de]
 	call Call_000_1a62
-	call Call_000_157b
+	call PlaySelectedMusic
 	xor a
 	ld [$ff00+$c7], a
 	ld a, [$ff00+$c0]
@@ -4938,7 +4919,7 @@ IF DEF(INTERNATIONAL)
 	ld [$c210], a
 .skip
 ENDC
-	call Call_000_26d7
+	call UpdateFirstSprite
 	xor a
 	ld [$ff00+$a0], a
 	ld a, [$ff00+$c0]
@@ -5235,7 +5216,7 @@ jr_000_1c4f:
 
 jr_000_1c5e:
 	ld [$c210], a
-	call Call_000_26ea
+	call UpdateSecondSprite
 	ret
 
 
@@ -5292,8 +5273,8 @@ jr_000_1ca8:
 
 jr_000_1cab:
 	ld [$c200], a
-	call Call_000_26d7
-	call Call_000_26ea
+	call UpdateFirstSprite
+	call UpdateSecondSprite
 	ret
 
 
@@ -5405,8 +5386,8 @@ HandleState1::
 	ld a, $80
 	ld [$c200], a
 	ld [$c210], a
-	call Call_000_26d7
-	call Call_000_26ea
+	call UpdateFirstSprite
+	call UpdateSecondSprite
 	xor a
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
@@ -5485,8 +5466,8 @@ jr_000_1dc1:
 	ld a, $80
 	ld [$c200], a
 	ld [$c210], a
-	call Call_000_26d7
-	call Call_000_26ea
+	call UpdateFirstSprite
+	call UpdateSecondSprite
 	call $7ff3
 	ld a, $25
 	ld [$ff00+$9e], a
@@ -5575,7 +5556,7 @@ HandleState34::
 	ld hl, $c200
 	ld de, $2789
 	ld c, $0a
-	call Call_000_17da
+	call LoadSprites
 	ld a, $10
 	ld hl, $c266
 	ld [hl], a
@@ -5638,7 +5619,7 @@ jr_000_1e73:
 
 jr_000_1e96:
 	ld a, $0a
-	call Call_000_26c7
+	call UpdateNSprites
 	ret
 
 HandleState35::
@@ -5684,7 +5665,7 @@ jr_000_1ec5:
 	jr nz, jr_000_1eac
 
 	ld a, $0a
-	call Call_000_26c7
+	call UpdateNSprites
 	ld a, [wCurSong]
 	and a
 	ret nz
@@ -6075,7 +6056,7 @@ jr_000_20bd:
 jr_000_20c0:
 	ld a, e
 	ld [$c213], a
-	call Call_000_26ea
+	call UpdateSecondSprite
 	ld a, [$ff00+$9a]
 	ld [$ff00+$99], a
 	ret
@@ -6130,7 +6111,7 @@ jr_000_20ff:
 	ld [$ff00+$99], a
 
 jr_000_210c:
-	call Call_000_26d7
+	call UpdateFirstSprite
 	ret
 
 
@@ -6152,7 +6133,7 @@ jr_000_211d:
 	ld [$ff00+$a0], a
 	add $08
 	ld [hl], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	call Call_000_25c7
 	and a
 	ret z
@@ -6160,7 +6141,7 @@ jr_000_211d:
 	ld a, [$ff00+$a0]
 	ld hl, $c201
 	ld [hl], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	ld a, $01
 	ld [$ff00+$98], a
 	ld [$c0c7], a
@@ -6383,13 +6364,13 @@ Call_000_2240:
 	ld de, $c0a3
 	ld a, [$ff00+$9c]
 	bit 0, a
-	jr nz, jr_000_228e
+	jr nz, .unk3
 
 	ld a, [de]
 	and a
-	jr z, jr_000_22a8
+	jr z, .unk5
 
-jr_000_2256:
+.outer_loop:
 	sub $30
 	ld h, a
 	inc de
@@ -6398,36 +6379,36 @@ jr_000_2256:
 	ld a, [$ff00+$9c]
 	cp $06
 	ld a, $8c
-	jr nz, jr_000_2266
+	jr nz, .skip
 
 	ld a, $2f
 
-jr_000_2266:
+.skip:
 	ld c, $0a
 
-jr_000_2268:
+.inner_loop:
 	ld [hl+], a
 	dec c
-	jr nz, jr_000_2268
+	jr nz, .inner_loop
 
 	inc de
 	ld a, [de]
 	and a
-	jr nz, jr_000_2256
+	jr nz, .outer_loop
 
-jr_000_2271:
+.loop2:
 	ld a, [$ff00+$9c]
 	inc a
 	ld [$ff00+$9c], a
 	cp $07
-	jr z, jr_000_227f
+	jr z, .unk1
 
 	ld a, $0a
 	ld [hDelayCounter], a
 	ret
 
 
-jr_000_227f:
+.unk1:
 	xor a
 	ld [$ff00+$9c], a
 	ld a, $0d
@@ -6435,13 +6416,13 @@ jr_000_227f:
 	ld a, $01
 	ld [$ff00+$e3], a
 
-jr_000_228a:
+.unk2:
 	xor a
 	ld [$ff00+$98], a
 	ret
 
 
-jr_000_228e:
+.unk3:
 	ld a, [de]
 	ld h, a
 	sub $30
@@ -6451,7 +6432,7 @@ jr_000_228e:
 	ld l, a
 	ld b, $0a
 
-jr_000_2298:
+.unk4:
 	ld a, [hl]
 	push hl
 	ld h, c
@@ -6459,18 +6440,18 @@ jr_000_2298:
 	pop hl
 	inc hl
 	dec b
-	jr nz, jr_000_2298
+	jr nz, .unk4
 
 	inc de
 	ld a, [de]
 	and a
-	jr nz, jr_000_228e
+	jr nz, .unk3
 
-	jr jr_000_2271
+	jr .loop2
 
-jr_000_22a8:
+.unk5:
 	call Call_000_2062
-	jr jr_000_228a
+	jr .unk2
 
 Call_000_22ad:
 	ld a, [hDelayCounter]
@@ -6779,70 +6760,67 @@ Call_000_242c:
 	ld a, [hMultiplayer]
 	and a
 	ld a, [hGameState]
-	jr nz, jr_000_248f
+	jr nz, .multiplayer
 
 	and a
 	ret nz
 
-jr_000_2449:
+.unk2449:
 	ld hl, $994e
 	ld de, $ff9f
 	ld c, $02
 	ld a, [$ff00+$c0]
 	cp $37
-	jr z, jr_000_245f
+	jr z, .unk245f
 
 	ld hl, $9950
 	ld de, $ff9e
 	ld c, $01
 
-jr_000_245f:
+.unk245f:
 	call Call_000_2a84
 	ld a, [$ff00+$c0]
 	cp $37
-	jr z, jr_000_248b
+	jr z, .unk248b
 
 	ld a, [$ff00+$9e]
 	and a
-	jr nz, jr_000_248b
+	jr nz, .unk248b
 
-	ld a, $64
+	ld a, 100
 	ld [hDelayCounter], a
-	ld a, $02
+	ld a, SONG_B_END_JINGLE
 	ld [wPlaySong], a
 	ld a, [hMultiplayer]
 	and a
-	jr z, jr_000_247e
+	jr z, .unk247e
 
 	ld [$ff00+$d5], a
 	ret
 
-
-jr_000_247e:
+.unk247e:
 	ld a, [$ff00+$c3]
 	cp $09
-	ld a, $05
-	jr nz, jr_000_2488
-
-	ld a, $22
-
-jr_000_2488:
+	ld a, STATE_05
+	jr nz, .unk2488
+	ld a, STATE_34
+.unk2488:
 	ld [hGameState], a
 	ret
 
 
-jr_000_248b:
+.unk248b:
 	call Call_000_2062
 	ret
 
 
-jr_000_248f:
-	cp $1a
+.multiplayer:
+	cp STATE_26
 	ret nz
 
 	ld a, [$ff00+$d4]
 	and a
-	jr z, jr_000_2449
+	jr z, .unk2449
 
 	xor a
 	ld [$ff00+$d4], a
@@ -7014,7 +6992,7 @@ jr_000_253e:
 jr_000_2542:
 	ld a, $03
 	ld [wPlaySFX], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	call Call_000_25c7
 	and a
 	jr z, jr_000_255d
@@ -7024,7 +7002,7 @@ jr_000_2542:
 	ld hl, $c203
 	ld a, [$ff00+$a0]
 	ld [hl], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 
 jr_000_255d:
 	ld hl, $c202
@@ -7053,7 +7031,7 @@ jr_000_257b:
 	ld a, [hl]
 	add $08
 	ld [hl], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	ld a, $04
 	ld [wPlaySFX], a
 	call Call_000_25c7
@@ -7066,7 +7044,7 @@ jr_000_258e:
 	ld [wPlaySFX], a
 	ld a, [$ff00+$a0]
 	ld [hl], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	ld a, $01
 
 jr_000_259d:
@@ -7096,7 +7074,7 @@ jr_000_25b2:
 	ld [hl], a
 	ld a, $04
 	ld [wPlaySFX], a
-	call Call_000_26d7
+	call UpdateFirstSprite
 	call Call_000_25c7
 	and a
 	ret z
@@ -7320,45 +7298,42 @@ jr_000_26b4:
 	ret
 
 
-Call_000_26c5:
+UpdateTwoSprites::
 	ld a, $02
 
-Call_000_26c7:
-	ld [$ff00+$8f], a
+UpdateNSprites::
+	ld [hSpriteCount], a
 	xor a
-	ld [$ff00+$8e], a
-	ld a, $c0
-	ld [$ff00+$8d], a
-	ld hl, $c200
-	call Call_000_2ad1
+	ld [hOAMBufferPtrLo], a ; how about a tail merge?
+	ld a, HIGH(wOAMBuffer) ; you could even load hl earlier
+	ld [hOAMBufferPtrHi], a
+	ld hl, wSpriteList
+	call UpdateSprites ; why no TCO?
 	ret
 
-
-Call_000_26d7:
-	ld a, $01
-	ld [$ff00+$8f], a
-	ld a, $10
-	ld [$ff00+$8e], a
-	ld a, $c0
-	ld [$ff00+$8d], a
-	ld hl, $c200
-	call Call_000_2ad1
+UpdateFirstSprite::
+	ld a, 1
+	ld [hSpriteCount], a
+	ld a, 4 * 4
+	ld [hOAMBufferPtrLo], a
+	ld a, HIGH(wOAMBuffer)
+	ld [hOAMBufferPtrHi], a
+	ld hl, wSpriteList sprite 0
+	call UpdateSprites
 	ret
 
-
-Call_000_26ea:
-	ld a, $01
-	ld [$ff00+$8f], a
-	ld a, $20
-	ld [$ff00+$8e], a
-	ld a, $c0
-	ld [$ff00+$8d], a
-	ld hl, $c210
-	call Call_000_2ad1
+UpdateSecondSprite::
+	ld a, 1
+	ld [hSpriteCount], a
+	ld a, 8 * 4
+	ld [hOAMBufferPtrLo], a
+	ld a, HIGH(wOAMBuffer)
+	ld [hOAMBufferPtrHi], a
+	ld hl, wSpriteList sprite 1
+	call UpdateSprites
 	ret
 
-
-DrawVerticalLine::
+unk26fd::
 	ld b, $20
 	ld a, $8e
 	ld de, BG_MAP_WIDTH
@@ -7383,7 +7358,6 @@ jr_000_270a:
 EmptyInterrupt:
 	reti
 
-
 	nop
 	jr jr_000_2755
 
@@ -7400,18 +7374,11 @@ EmptyInterrupt:
 	nop
 	nop
 	rst $38
-	nop
-	ld [hl], b
-	scf
-	inc e
-	nop
-	nop
-	nop
-	jr c, @+$39
 
-	inc e
-	nop
-	nop
+ModeSelectSpriteList::
+	db SPRITE_VISIBLE, 112, 55, SPRITE_TYPE_A, 0, 0
+	db SPRITE_VISIBLE, 56,  55, SPRITE_TYPE_A, 0, 0
+
 	nop
 	ld b, b
 	inc [hl]
@@ -7661,7 +7628,7 @@ LoadFont::
 	jr nz, .loop
 	ret
 
-LoadOtherTileset::
+LoadTitlescreenTileset::
 	call LoadFont
 	ld bc, $0da0
 	call CopyBytes ; why no TCO?
@@ -8273,206 +8240,7 @@ jr_000_2abf:
 	pop af
 	jr jr_000_2aae
 
-DMA_Routine::
-	ld a, HIGH(wOAMBuffer)
-	ld [rDMA], a
-	ld a, $28
-.wait:
-	dec a
-	jr nz, .wait
-	ret
-DMA_Routine_End:
-
-
-Call_000_2ad1:
-jr_000_2ad1:
-	ld a, h
-	ld [$ff00+$96], a
-	ld a, l
-	ld [$ff00+$97], a
-	ld a, [hl]
-	and a
-	jr z, jr_000_2af8
-
-	cp $80
-	jr z, jr_000_2af6
-
-jr_000_2adf:
-	ld a, [$ff00+$96]
-	ld h, a
-	ld a, [$ff00+$97]
-	ld l, a
-	ld de, $0010
-	add hl, de
-	ld a, [$ff00+$8f]
-	dec a
-	ld [$ff00+$8f], a
-	ret z
-
-	jr jr_000_2ad1
-
-jr_000_2af1:
-	xor a
-	ld [$ff00+$95], a
-	jr jr_000_2adf
-
-jr_000_2af6:
-	ld [$ff00+$95], a
-
-jr_000_2af8:
-	ld b, $07
-	ld de, $ff86
-
-jr_000_2afd:
-	ld a, [hl+]
-	ld [de], a
-	inc de
-	dec b
-	jr nz, jr_000_2afd
-
-	ld a, [$ff00+$89]
-	ld hl, $2bac
-	rlca
-	ld e, a
-	ld d, $00
-	add hl, de
-	ld e, [hl]
-	inc hl
-	ld d, [hl]
-	ld a, [de]
-	ld l, a
-	inc de
-	ld a, [de]
-	ld h, a
-	inc de
-	ld a, [de]
-	ld [$ff00+$90], a
-	inc de
-	ld a, [de]
-	ld [$ff00+$91], a
-	ld e, [hl]
-	inc hl
-	ld d, [hl]
-
-Jump_000_2b20:
-jr_000_2b20:
-	inc hl
-	ld a, [$ff00+$8c]
-	ld [$ff00+$94], a
-	ld a, [hl]
-	cp $ff
-	jr z, jr_000_2af1
-
-	cp $fd
-	jr nz, jr_000_2b3c
-
-	ld a, [$ff00+$8c]
-	xor $20
-	ld [$ff00+$94], a
-	inc hl
-	ld a, [hl]
-	jr jr_000_2b40
-
-jr_000_2b38:
-	inc de
-	inc de
-	jr jr_000_2b20
-
-jr_000_2b3c:
-	cp $fe
-	jr z, jr_000_2b38
-
-jr_000_2b40:
-	ld [$ff00+$89], a
-	ld a, [$ff00+$87]
-	ld b, a
-	ld a, [de]
-	ld c, a
-	ld a, [$ff00+$8b]
-	bit 6, a
-	jr nz, jr_000_2b53
-
-	ld a, [$ff00+$90]
-	add b
-	adc c
-	jr jr_000_2b5d
-
-jr_000_2b53:
-	ld a, b
-	push af
-	ld a, [$ff00+$90]
-	ld b, a
-	pop af
-	sub b
-	sbc c
-	sbc $08
-
-jr_000_2b5d:
-	ld [$ff00+$93], a
-	ld a, [$ff00+$88]
-	ld b, a
-	inc de
-	ld a, [de]
-	inc de
-	ld c, a
-	ld a, [$ff00+$8b]
-	bit 5, a
-	jr nz, jr_000_2b72
-
-	ld a, [$ff00+$91]
-	add b
-	adc c
-	jr jr_000_2b7c
-
-jr_000_2b72:
-	ld a, b
-	push af
-	ld a, [$ff00+$91]
-	ld b, a
-	pop af
-	sub b
-	sbc c
-	sbc $08
-
-jr_000_2b7c:
-	ld [$ff00+$92], a
-	push hl
-	ld a, [$ff00+$8d]
-	ld h, a
-	ld a, [$ff00+$8e]
-	ld l, a
-	ld a, [$ff00+$95]
-	and a
-	jr z, jr_000_2b8e
-
-	ld a, $ff
-	jr jr_000_2b90
-
-jr_000_2b8e:
-	ld a, [$ff00+$93]
-
-jr_000_2b90:
-	ld [hl+], a
-	ld a, [$ff00+$92]
-	ld [hl+], a
-	ld a, [$ff00+$89]
-	ld [hl+], a
-	ld a, [$ff00+$94]
-	ld b, a
-	ld a, [$ff00+$8b]
-	or b
-	ld b, a
-	ld a, [$ff00+$8a]
-	or b
-	ld [hl+], a
-	ld a, h
-	ld [$ff00+$8d], a
-	ld a, l
-	ld [$ff00+$8e], a
-	pop hl
-	jp Jump_000_2b20
-
-INCBIN "baserom.gb", $2bac, $3287 - $2bac
+INCLUDE "sprites.asm"
 
 GFX_Common2::
 INCBIN "gfx/common2.2bpp"
