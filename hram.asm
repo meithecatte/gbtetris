@@ -49,5 +49,7 @@ hRecvBuffer      EQU $ffd0
 hGameState     EQU $ffe1
 hDemoNumber    EQU $ffe4
 
+hEnableHighscoreVBlank EQU $ffe8
+
 hMultiplayerNewMusic EQU $fff0
 hStartAtLevel10      EQU $fff4

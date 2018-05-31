@@ -148,7 +148,7 @@ VBlankInterrupt::
 	call Call_000_22fe
 	call Call_000_1f32
 	call hOAMDMA
-	call Call_000_192e
+	call CopyHighscoresFromTilemapBuffer
 	ld a, [$c0ce]
 	and a
 	jr z, jr_000_027a
@@ -1294,11 +1294,11 @@ Call_000_087b:
 	ld a, [$ff00+$ac]
 	ld de, $c201
 	ld hl, $0863
-	call Call_000_17b9
+	call UpdateDigitCursor_NoSFX
 	ld a, [$ff00+$ad]
 	ld de, $c211
 	ld hl, $086f
-	call Call_000_17b9
+	call UpdateDigitCursor_NoSFX
 	ret
 
 HandleState24::
@@ -3842,19 +3842,19 @@ LoadTypeAMenu::
 	call DisableLCD
 	ld de, TypeATilemap
 	call LoadTilemapA
-	call Call_000_1960
+	call FillHighscoreTilemapWithDots
 	call ClearOAM
-	ld hl, $c200
-	ld de, $272f
-	ld c, $01
+	ld hl, wSpriteList
+	ld de, TypeAMenuSpriteList
+	ld c, 1
 	call LoadSprites
-	ld de, $c201
-	ld a, [$ff00+$c2]
-	ld hl, $1679
-	call Call_000_17b2
+	ld de, wSpriteList sprite 0 + SPRITE_OFFSET_Y
+	ld a, [hTypeALevel]
+	ld hl, TypeAMenuCursorPositions
+	call UpdateDigitCursor
 	call UpdateTwoSprites
 	call Call_000_17f9
-	call Call_000_192e
+	call CopyHighscoresFromTilemapBuffer
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
 	ld a, $11
@@ -3917,8 +3917,8 @@ jr_000_1655:
 jr_000_165a:
 	ld [hl], a
 	ld de, $c201
-	ld hl, $1679
-	call Call_000_17b2
+	ld hl, TypeAMenuCursorPositions
+	call UpdateDigitCursor
 	call Call_000_17f9
 
 jr_000_1667:
@@ -3940,26 +3940,17 @@ jr_000_1671:
 	sub $05
 	jr jr_000_165a
 
-	ld b, b
-	jr nc, @+$42
-
-	ld b, b
-	ld b, b
-	ld d, b
-	ld b, b
-	ld h, b
-	ld b, b
-	ld [hl], b
-	ld d, b
-	jr nc, jr_000_16d6
-
-	ld b, b
-	ld d, b
-	ld d, b
-	ld d, b
-	ld h, b
-	ld d, b
-	ld [hl], b
+TypeAMenuCursorPositions::
+	db 64, 48
+	db 64, 64
+	db 64, 80
+	db 64, 96
+	db 64, 112
+	db 80, 48
+	db 80, 64
+	db 80, 80
+	db 80, 96
+	db 80, 112
 
 LoadTypeBMenu::
 	call DisableLCD
@@ -3973,14 +3964,14 @@ LoadTypeBMenu::
 	ld de, $c201
 	ld a, [$ff00+$c3]
 	ld hl, $1736
-	call Call_000_17b2
+	call UpdateDigitCursor
 	ld de, $c211
 	ld a, [$ff00+$c4]
 	ld hl, $17a5
-	call Call_000_17b2
+	call UpdateDigitCursor
 	call UpdateTwoSprites
 	call Call_000_1813
-	call Call_000_192e
+	call CopyHighscoresFromTilemapBuffer
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
 	ld a, $13
@@ -4052,7 +4043,7 @@ jr_000_1717:
 	ld [hl], a
 	ld de, $c201
 	ld hl, $1736
-	call Call_000_17b2
+	call UpdateDigitCursor
 	call Call_000_1813
 
 jr_000_1724:
@@ -4149,7 +4140,7 @@ jr_000_1786:
 	ld [hl], a
 	ld de, $c211
 	ld hl, $17a5
-	call Call_000_17b2
+	call UpdateDigitCursor
 	call Call_000_1813
 
 jr_000_1793:
@@ -4185,17 +4176,17 @@ jr_000_179d:
 	sub b
 	nop
 
-Call_000_17b2:
+UpdateDigitCursor:
 	push af
-	ld a, $01
+	ld a, SFX_CURSOR_BEEP
 	ld [wPlaySFX], a
 	pop af
 
-Call_000_17b9:
+UpdateDigitCursor_NoSFX:
 	push af
 	add a
 	ld c, a
-	ld b, $00
+	ld b, 0
 	add hl, bc
 	ld a, [hl+]
 	ld [de], a
@@ -4204,7 +4195,7 @@ Call_000_17b9:
 	ld [de], a
 	inc de
 	pop af
-	add $20
+	add SPRITE_DIGIT_0
 	ld [de], a
 	ret
 
@@ -4258,7 +4249,7 @@ ClearOAM::
 
 
 Call_000_17f9:
-	call Call_000_1960
+	call FillHighscoreTilemapWithDots
 	ld a, [$ff00+$c2]
 	ld hl, $d654
 	ld de, $001b
@@ -4281,7 +4272,7 @@ jr_000_180b:
 
 
 Call_000_1813:
-	call Call_000_1960
+	call FillHighscoreTilemapWithDots
 	ld a, [$ff00+$c3]
 	ld hl, $d000
 	ld de, $00a2
@@ -4542,60 +4533,63 @@ jr_000_191a:
 	ret
 
 
-Call_000_192e:
-	ld a, [$ff00+$e8]
+CopyHighscoresFromTilemapBuffer::
+	ld a, [hEnableHighscoreVBlank]
 	and a
 	ret z
 
-	ld hl, $99a4
-	ld de, $c9a4
-	ld c, $06
+	ld hl, vBGMapA  + 13 * BG_MAP_WIDTH + 4
+	ld de, wTileMap + 13 * BG_MAP_WIDTH + 4
+	ld c, 6
 
-jr_000_193a:
+.row_loop:
 	push hl
 
-jr_000_193b:
-	ld b, $06
+.area_loop:
+	ld b, 6
 
-jr_000_193d:
+.tile_loop:
 	ld a, [de]
 	ld [hl+], a
 	inc e
 	dec b
-	jr nz, jr_000_193d
+	jr nz, .tile_loop
 
-	inc e
+	inc e ; skip the two tiles between the name and the score
 	inc l
 	inc e
 	inc l
+
 	dec c
-	jr z, jr_000_195b
+	jr z, .end
 
 	bit 0, c
-	jr nz, jr_000_193b
+	jr nz, .area_loop
 
 	pop hl
-	ld de, $0020
+	ld de, BG_MAP_WIDTH
 	add hl, de
-	push hl
+
+	push hl ; ld h, d / ld l, e takes 12 T-cycles less
 	pop de
-	ld a, $30
+
+	ld a, HIGH(wTileMap - vBGMapA)
 	add d
 	ld d, a
-	jr jr_000_193a
+	jr .row_loop
 
-jr_000_195b:
+.end:
 	pop hl
 	xor a
-	ld [$ff00+$e8], a
+	ld [hEnableHighscoreVBlank], a
 	ret
 
 
-Call_000_1960:
-	ld hl, $c9a4
-	ld de, $0020
+FillHighscoreTilemapWithDots::
+	ld hl, wTileMap + 13 * BG_MAP_WIDTH + 4
+	ld de, BG_MAP_WIDTH
 	ld a, $60
-	ld c, $03
+	ld c, HIGHSCORE_ENTRY_COUNT
 
 jr_000_196a:
 	ld b, $0e
@@ -4610,7 +4604,6 @@ jr_000_196d:
 	add hl, de
 	dec c
 	jr nz, jr_000_196a
-
 	ret
 
 HandleState21::
@@ -7379,13 +7372,9 @@ ModeSelectSpriteList::
 	db SPRITE_VISIBLE, 112, 55, SPRITE_TYPE_A, 0, 0
 	db SPRITE_VISIBLE, 56,  55, SPRITE_TYPE_A, 0, 0
 
-	nop
-	ld b, b
-	inc [hl]
-	jr nz, jr_000_2734
+TypeAMenuSpriteList::
+	db SPRITE_VISIBLE, 64, 52, SPRITE_DIGIT_0, 0, 0
 
-jr_000_2734:
-	nop
 	nop
 	ld b, b
 	inc e

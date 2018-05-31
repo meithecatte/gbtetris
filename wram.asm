@@ -11,6 +11,12 @@ SECTION "Sprites", WRAM0[$c200]
 ; offset 5: flip
 ; offset 6: flags
 wSpriteList::
+	ds SPRITE_SIZE * 2 ; haven't seen more than 2 sprites yet
+
+SECTION "Tile Map Buffer", WRAM0[$c800]
+; not used all the time
+wTileMap::
+	ds BG_MAP_WIDTH * BG_MAP_HEIGHT
 SECTION "Stack", WRAM0[$cf00]
 wStack::
 	ds $100
