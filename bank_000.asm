@@ -6452,15 +6452,15 @@ jr_000_255d:
 	bit 4, c
 	jr z, jr_000_25a0
 
-	ld a, [$ff00+$aa]
+	ld a, [hMenuAutoFireCountdown]
 	dec a
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ret nz
 
 	ld a, $09
 
 jr_000_257b:
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ld a, [hl]
 	add $08
 	ld [hl], a
@@ -6481,7 +6481,7 @@ jr_000_258e:
 	ld a, $01
 
 jr_000_259d:
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ret
 
 
@@ -6493,15 +6493,15 @@ jr_000_25a0:
 	bit 5, c
 	jr z, jr_000_259d
 
-	ld a, [$ff00+$aa]
+	ld a, [hMenuAutoFireCountdown]
 	dec a
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ret nz
 
 	ld a, $09
 
 jr_000_25b2:
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ld a, [hl]
 	sub $08
 	ld [hl], a

@@ -415,29 +415,29 @@ HandleHighscoreEnterName::
 	ld b, a
 	ld a, [hKeysHeld]
 	ld c, a
-	ld a, $17
-	bit 6, b
-	jr nz, jr_000_19eb
+	ld a, 23 ; initial autofire countdown
+	bit PADB_UP, b
+	jr nz, .pressed_up
 
-	bit 6, c
-	jr nz, jr_000_19e3
+	bit PADB_UP, c
+	jr nz, .holding_up
 
-	bit 7, b
-	jr nz, jr_000_1a14
+	bit PADB_DOWN, b
+	jr nz, .pressed_down
 
-	bit 7, c
-	jr nz, jr_000_1a0c
+	bit PADB_DOWN, c
+	jr nz, .holding_down
 
-	bit 0, b
-	jr nz, jr_000_1a30
+	bit PADB_A, b
+	jr nz, .pressed_a
 
-	bit 1, b
-	jp nz, Jump_000_1a52
+	bit PADB_B, b
+	jp nz, .pressed_b
 
-	bit 3, b
+	bit PADB_START, b
 	ret z
 
-jr_000_19cc:
+.pressed_start:
 	ld a, [de]
 	call WriteAInHBlank
 	call PlaySelectedMusic
@@ -453,117 +453,115 @@ jr_000_19cc:
 .set_game_state:
 	ld [hGameState], a
 	ret
-jr_000_19e3:
-	ld a, [$ff00+$aa]
+
+.holding_up:
+	ld a, [hMenuAutoFireCountdown]
 	dec a
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ret nz
 
-	ld a, $09
+	ld a, 9
+.pressed_up:
+	ld [hMenuAutoFireCountdown], a
+	ld b, "x"
 
-jr_000_19eb:
-	ld [$ff00+$aa], a
-	ld b, $26
+	; only allow to enter a heart if down+start was used at the title screen to increase the difficulty
 	ld a, [hStartAtLevel10]
 	and a
-	jr z, jr_000_19f6
-
-	ld b, $27
-
-jr_000_19f6:
+	jr z, .got_up_cap
+	ld b, "[heart]"
+.got_up_cap:
 	ld a, [de]
 	cp b
-	jr nz, jr_000_1a04
+	jr nz, .not_up_cap
 
-	ld a, $2e
-
-jr_000_19fc:
+	ld a, " " - 1
+.normal_up:
 	inc a
 
-jr_000_19fd:
+.write_letter_back:
 	ld [de], a
-	ld a, $01
+	ld a, SFX_CURSOR_BEEP
 	ld [wPlaySFX], a
 	ret
 
-
-jr_000_1a04:
+.not_up_cap:
 	cp $2f
-	jr nz, jr_000_19fc
+	jr nz, .normal_up
 
-	ld a, $0a
-	jr jr_000_19fd
+	ld a, "A"
+	jr .write_letter_back
 
-jr_000_1a0c:
-	ld a, [$ff00+$aa]
+.holding_down:
+	ld a, [hMenuAutoFireCountdown]
 	dec a
-	ld [$ff00+$aa], a
+	ld [hMenuAutoFireCountdown], a
 	ret nz
 
-	ld a, $09
+	ld a, 9
+.pressed_down:
+	ld [hMenuAutoFireCountdown], a
+	ld b, "x"
 
-jr_000_1a14:
-	ld [$ff00+$aa], a
-	ld b, $26
+	; only allow to enter a heart if down+start was used at the title screen to increase the difficulty
 	ld a, [hStartAtLevel10]
 	and a
-	jr z, jr_000_1a1f
-
-	ld b, $27
-
-jr_000_1a1f:
+	jr z, .got_down_cap
+	ld b, "[heart]"
+.got_down_cap:
 	ld a, [de]
-	cp $0a
-	jr nz, jr_000_1a29
+	cp "A"
+	jr nz, .not_a
 
-	ld a, $30
-
-jr_000_1a26:
+	ld a, " " + 1
+.normal_down:
 	dec a
-	jr jr_000_19fd
+	jr .write_letter_back
 
-jr_000_1a29:
-	cp $2f
-	jr nz, jr_000_1a26
+.not_a:
+	cp " "
+	jr nz, .normal_down
 
 	ld a, b
-	jr jr_000_19fd
+	jr .write_letter_back
 
-jr_000_1a30:
+.pressed_a:
 	ld a, [de]
 	call WriteAInHBlank
-	ld a, $02
+	ld a, SFX_CONFIRM_BEEP
 	ld [wPlaySFX], a
+
 	ld a, [hHighscoreLettersEntered]
 	inc a
-	cp $06
-	jr z, jr_000_19cc
+	cp HIGHSCORE_NAME_LENGTH
+	jr z, .pressed_start
 
 	ld [hHighscoreLettersEntered], a
 	inc de
 	ld a, [de]
-	cp $60
-	jr nz, jr_000_1a4b
+	cp "..."
+	jr nz, .save_tilemap_pointer ; happens if you backtrack with B
 
-	ld a, $0a
+	ld a, "A"
 	ld [de], a
 
-jr_000_1a4b:
+.save_tilemap_pointer:
 	ld a, d
 	ld [hHighscoreNamePointerHi], a
 	ld a, e
 	ld [hHighscoreNamePointerLo], a
 	ret
 
-Jump_000_1a52:
+.pressed_b:
 	ld a, [hHighscoreLettersEntered]
 	and a
 	ret z
 
 	ld a, [de]
 	call WriteAInHBlank
+
 	ld a, [hHighscoreLettersEntered]
 	dec a
 	ld [hHighscoreLettersEntered], a
 	dec de
-	jr jr_000_1a4b
+	jr .save_tilemap_pointer

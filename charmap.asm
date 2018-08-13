@@ -36,6 +36,8 @@
 	charmap "Z", $23
 	charmap ".", $24
 	charmap "-", $25
+	charmap "x", $26
+	charmap "[heart]", $27
 
 	charmap " ", $2f
 

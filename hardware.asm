@@ -739,14 +739,14 @@ PADF_SELECT EQU $04
 PADF_B      EQU $02
 PADF_A      EQU $01
 
-PADB_DOWN   EQU $7
-PADB_UP     EQU $6
-PADB_LEFT   EQU $5
-PADB_RIGHT  EQU $4
-PADB_START  EQU $3
-PADB_SELECT EQU $2
-PADB_B      EQU $1
-PADB_A      EQU $0
+PADB_DOWN   EQU 7
+PADB_UP     EQU 6
+PADB_LEFT   EQU 5
+PADB_RIGHT  EQU 4
+PADB_START  EQU 3
+PADB_SELECT EQU 2
+PADB_B      EQU 1
+PADB_A      EQU 0
 
 ;***************************************************************************
 ;*

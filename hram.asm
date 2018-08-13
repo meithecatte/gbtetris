@@ -31,6 +31,8 @@ hSavedIE        EQU $ffa1
 hDelayCounter   EQU $ffa6
 hDelayCounter2  EQU $ffa7
 
+hMenuAutoFireCountdown EQU $ffaa
+
 hOAMDMA EQU $ffb6 ; ends $ffbf, 10 bytes long
 
 hGameType      EQU $ffc0
