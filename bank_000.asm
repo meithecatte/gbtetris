@@ -9,11 +9,15 @@ SECTION "rst8", ROM0[$8]
 	jp Init
 
 SECTION "rst28", ROM0[$28]
+	; A = jumptable entry number
+	; jumptable follows rst instruction
+	; clobbers de, hl and a
 	add a
 	pop hl
 	ld e, a
 	ld d, $00
 	add hl, de ; do this twice instead of add a at the beginning for increased range
+
 	ld e, [hl] ; better:
 	inc hl     ; ld a, [hli]
 	ld d, [hl] ; ld h, [hl]
@@ -44,16 +48,6 @@ SECTION "Entry Point", ROM0[$100]
 	rept $14E - $104
 	db $00
 	endr
-
-SECTION "Global checksum", ROM0[$14E]
-; rgbfix computes this incorrectly, the ROM
-; has a bad checksum or I'm dumb
-HeaderGlobalChecksum::
-IF DEF(INTERNATIONAL)
-	db $16, $bf
-ELSE
-	db $89, $b5
-ENDC
 
 SECTION "Code", ROM0[$150]
 Boot:

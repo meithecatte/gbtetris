@@ -25,12 +25,12 @@ main11.o: main.asm $(shell tools/scan_includes main.asm)
 
 tetris10.gb: main10.o
 	rgblink -n tetris10.sym -m tetris10.map -tdp 255 -o $@ $<
-	rgbfix -f lh -t TETRIS -n 0 -l 1 $@
+	rgbfix -v -t TETRIS -n 0 -l 1 $@
 	sort -o tetris10.sym tetris10.sym
 
 tetris11.gb: main11.o
 	rgblink -n tetris11.sym -m tetris11.map -tdp 255 -o $@ $<
-	rgbfix -f lh -t TETRIS -n 1 -l 1 $@
+	rgbfix -v -t TETRIS -n 1 -l 1 $@
 	sort -o tetris11.sym tetris11.sym
 clean:
 	rm -f main10.o tetris10.gb tetris10.sym tetris10.map main11.o tetris11.gb tetris11.sym tetris11.map
