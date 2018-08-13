@@ -100,7 +100,7 @@ IF !DEF(INTERNATIONAL)
 	INCLUDE "serial.asm"
 ENDC
 
-	INCLUDE "vblank.asm"
+INCLUDE "vblank.asm"
 
 Init::
 	xor a
@@ -3534,7 +3534,7 @@ jr_000_149b:
 
 	ret
 
-	INCLUDE "menus.asm"
+INCLUDE "menus.asm"
 
 ; hl = wSpriteList pointer
 ; de = sprite list in ROM
