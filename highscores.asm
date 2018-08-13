@@ -42,13 +42,13 @@ RenderTypeBHighscores:
 
 .high_loop:
 	and a
-	jr z, .end
+	jr z, .got_final_pointer
 
 	dec a
 	add hl, de
 	jr .high_loop
 
-.end:
+.got_final_pointer:
 	inc hl
 	inc hl
 	push hl
@@ -56,28 +56,26 @@ RenderTypeBHighscores:
 	call RenderHighscores ; why no TCO?
 	ret
 
+DisplayHighscore:
+	assert "0" == 0
+	ld b, SCORE_SIZE
 
-HighscoreUnk1:
-	ld b, $03
-
-.loop1:
+.skip_leading_zeroes:
 	ld a, [hl]
 	and $f0
-	jr nz, .loop2
+	jr nz, .display_bcd_byte
 
 	inc e
 	ld a, [hl-]
 	and $0f
-	jr nz, .unk
+	jr nz, .start_from_the_middle_of_a_byte
 
 	inc e
 	dec b
-	jr nz, .loop1
-
+	jr nz, .skip_leading_zeroes
 	ret
 
-
-.loop2:
+.display_bcd_byte:
 	ld a, [hl]
 	and $f0
 	swap a
@@ -86,12 +84,11 @@ HighscoreUnk1:
 	ld a, [hl-]
 	and $0f
 
-.unk:
+.start_from_the_middle_of_a_byte:
 	ld [de], a
 	inc e
 	dec b
-	jr nz, .loop2
-
+	jr nz, .display_bcd_byte
 	ret
 
 CopyHighscore:
@@ -106,6 +103,7 @@ CopyHighscore:
 	ret
 
 RenderHighscores::
+; DE = highscore block for level + 2 (points at the end of first highscore)
 	ld a, d
 	ld [hHighscorePtrHi], a
 	ld a, e
@@ -155,15 +153,17 @@ ENDR
 	ld d, a
 	ld a, [hHighscorePtrLo]
 	ld e, a
+	; de points at the end of the first highscore
 	push de
 	push bc
-	ld hl, $0006
+	ld hl, (HIGHSCORE_ENTRY_COUNT - 1) * SCORE_SIZE
 	add hl, de
 	push hl
 	pop de
+
+REPT SCORE_SIZE
 	dec hl
-	dec hl
-	dec hl
+ENDR
 
 .shift_other_scores:
 	dec c
@@ -185,110 +185,119 @@ ENDR
 
 	pop bc
 	pop de
+	; de points at the end of first score
 	ld a, c
-	ld [$ff00+$c8], a
-	ld hl, $0012
+	ld [hHighscorePosition], a
+	ld hl, (HIGHSCORE_ENTRY_COUNT - 1) * SCORE_SIZE + (HIGHSCORE_ENTRY_COUNT - 1) * HIGHSCORE_NAME_LENGTH
 	add hl, de
 	push hl
-	ld de, $0006
+	ld de, HIGHSCORE_NAME_LENGTH
 	add hl, de
 	push hl
 	pop de
 	pop hl
+	; de points at the end of the last name
+	; hl points at the end of the second to last name
 
-.unk18bc:
+.shift_other_names:
 	dec c
-	jr z, .unk18c6
+	jr z, .finished_shifting_names
 
-	ld b, $06
-	call Highscore_CopyBackwards.loop
-	jr .unk18bc
+	ld b, HIGHSCORE_NAME_LENGTH
+	call CopyHighscore.loop
+	jr .shift_other_names
 
-.unk18c6:
-	ld a, $60
-	ld b, $05
+.finished_shifting_names:
+	ld a, "..."
+	ld b, HIGHSCORE_NAME_LENGTH - 1
 
-.unk18ca:
+.fill_name_with_dots:
 	ld [de], a
 	dec de
 	dec b
-	jr nz, .unk18ca
+	jr nz, .fill_name_with_dots
 
-	ld a, $0a
+	ld a, "A"
 	ld [de], a
 	ld a, d
-	ld [$ff00+$c9], a
+	ld [hHighscoreNamePointerHi], a
 	ld a, e
-	ld [$ff00+$ca], a
+	ld [hHighscoreNamePointerLo], a
 	xor a
-	ld [$ff00+$9c], a
-	ld [hDemoCountdown], a
+	ld [hHighscoreBlink], a
+	ld [hHighscoreLettersEntered], a
 	ld a, SONG_HIGHSCORE
 	ld [wPlaySong], a
-	ld [$ff00+$c7], a
+	assert SONG_HIGHSCORE != 0
+	ld [hHighscoreEnterName], a
 
 .no_place_for_new_score:
-	ld de, $c9ac
+	ld de, wTileMap + 13 * BG_MAP_WIDTH + 12
 	ld a, [hHighscorePtrHi]
 	ld h, a
 	ld a, [hHighscorePtrLo]
 	ld l, a
-	ld b, $03
+	ld b, HIGHSCORE_ENTRY_COUNT
 
-.unk18ef:
+.display_scores:
 	push hl
 	push de
 	push bc
-	call HighscoreUnk1
+	call DisplayHighscore
 	pop bc
 	pop de
-	ld hl, $0020
+
+	ld hl, BG_MAP_WIDTH
 	add hl, de
 	push hl
 	pop de
+
 	pop hl
+
 	push de
-	ld de, $0003
+	ld de, SCORE_SIZE
 	add hl, de
 	pop de
+
 	dec b
-	jr nz, .unk18ef
+	jr nz, .display_scores
 
 	dec hl
 	dec hl
-	ld b, $03
-	ld de, $c9a4
+	ld b, HIGHSCORE_ENTRY_COUNT
+	ld de, wTileMap + 13 * BG_MAP_WIDTH + 4
 
-.unk190e:
+.name_loop:
 	push de
-	ld c, $06
+	ld c, HIGHSCORE_NAME_LENGTH
 
-.unk1911:
+.name_byte_loop:
 	ld a, [hl+]
 	and a
-	jr z, .unk191a
+	jr z, .name_end
 
 	ld [de], a
 	inc de
 	dec c
-	jr nz, .unk1911
+	jr nz, .name_byte_loop
 
-.unk191a:
+.name_end:
 	pop de
 	push hl
-	ld hl, $0020
+
+	ld hl, BG_MAP_WIDTH
 	add hl, de
 	push hl
 	pop de
+
 	pop hl
 	dec b
-	jr nz, .unk190e
+	jr nz, .name_loop
 
-	call Call_000_26a5
-	ld a, $01
+	call ResetGameplayVariablesMaybe
+	ld a, 1
 	ld [hEnableHighscoreVBlank], a
 	ret
-
 
 CopyHighscoresFromTilemapBuffer::
 	ld a, [hEnableHighscoreVBlank]
@@ -303,7 +312,8 @@ CopyHighscoresFromTilemapBuffer::
 	push hl
 
 .area_loop:
-	ld b, 6
+	assert SCORE_SIZE * 2 == HIGHSCORE_NAME_LENGTH
+	ld b, HIGHSCORE_NAME_LENGTH
 
 .tile_loop:
 	ld a, [de]
@@ -341,11 +351,10 @@ CopyHighscoresFromTilemapBuffer::
 	ld [hEnableHighscoreVBlank], a
 	ret
 
-
 FillHighscoreTilemapWithDots::
 	ld hl, wTileMap + 13 * BG_MAP_WIDTH + 4
 	ld de, BG_MAP_WIDTH
-	ld a, $60
+	ld a, "..."
 	ld c, HIGHSCORE_ENTRY_COUNT
 
 .row_loop:
@@ -363,3 +372,198 @@ FillHighscoreTilemapWithDots::
 	jr nz, .row_loop
 	ret
 
+HandleHighscoreEnterName::
+	ld a, [hHighscorePosition]
+	ld hl, vBGMapA + 15 * BG_MAP_WIDTH + 4
+	ld de, -BG_MAP_WIDTH
+
+.tilemap_add_loop:
+	dec a
+	jr z, .got_tilemap_pointer
+
+	add hl, de
+	jr .tilemap_add_loop
+
+.got_tilemap_pointer:
+	ld a, [hHighscoreLettersEntered]
+	ld e, a
+	ld d, 0
+	add hl, de
+	ld a, [hHighscoreNamePointerHi]
+	ld d, a
+	ld a, [hHighscoreNamePointerLo]
+	ld e, a
+	ld a, [hDelayCounter]
+	and a
+	jr nz, .skip_blink
+
+	ld a, 7
+	ld [hDelayCounter], a
+	ld a, [hHighscoreBlink]
+	xor 1
+	ld [hHighscoreBlink], a
+	ld a, [de]
+	jr z, .blink
+
+	ld a, " "
+
+.blink:
+	call WriteAInHBlank
+
+.skip_blink:
+	ld a, [hKeysPressed]
+	ld b, a
+	ld a, [hKeysHeld]
+	ld c, a
+	ld a, $17
+	bit 6, b
+	jr nz, jr_000_19eb
+
+	bit 6, c
+	jr nz, jr_000_19e3
+
+	bit 7, b
+	jr nz, jr_000_1a14
+
+	bit 7, c
+	jr nz, jr_000_1a0c
+
+	bit 0, b
+	jr nz, jr_000_1a30
+
+	bit 1, b
+	jp nz, Jump_000_1a52
+
+	bit 3, b
+	ret z
+
+jr_000_19cc:
+	ld a, [de]
+	call WriteAInHBlank
+	call PlaySelectedMusic
+
+	xor a
+	ld [hHighscoreEnterName], a
+
+	ld a, [hGameType]
+	cp GAME_TYPE_A
+	ld a, STATE_TYPE_A_MENU
+	jr z, .set_game_state
+	ld a, STATE_TYPE_B_MENU
+.set_game_state:
+	ld [hGameState], a
+	ret
+jr_000_19e3:
+	ld a, [$ff00+$aa]
+	dec a
+	ld [$ff00+$aa], a
+	ret nz
+
+	ld a, $09
+
+jr_000_19eb:
+	ld [$ff00+$aa], a
+	ld b, $26
+	ld a, [hStartAtLevel10]
+	and a
+	jr z, jr_000_19f6
+
+	ld b, $27
+
+jr_000_19f6:
+	ld a, [de]
+	cp b
+	jr nz, jr_000_1a04
+
+	ld a, $2e
+
+jr_000_19fc:
+	inc a
+
+jr_000_19fd:
+	ld [de], a
+	ld a, $01
+	ld [wPlaySFX], a
+	ret
+
+
+jr_000_1a04:
+	cp $2f
+	jr nz, jr_000_19fc
+
+	ld a, $0a
+	jr jr_000_19fd
+
+jr_000_1a0c:
+	ld a, [$ff00+$aa]
+	dec a
+	ld [$ff00+$aa], a
+	ret nz
+
+	ld a, $09
+
+jr_000_1a14:
+	ld [$ff00+$aa], a
+	ld b, $26
+	ld a, [hStartAtLevel10]
+	and a
+	jr z, jr_000_1a1f
+
+	ld b, $27
+
+jr_000_1a1f:
+	ld a, [de]
+	cp $0a
+	jr nz, jr_000_1a29
+
+	ld a, $30
+
+jr_000_1a26:
+	dec a
+	jr jr_000_19fd
+
+jr_000_1a29:
+	cp $2f
+	jr nz, jr_000_1a26
+
+	ld a, b
+	jr jr_000_19fd
+
+jr_000_1a30:
+	ld a, [de]
+	call WriteAInHBlank
+	ld a, $02
+	ld [wPlaySFX], a
+	ld a, [hHighscoreLettersEntered]
+	inc a
+	cp $06
+	jr z, jr_000_19cc
+
+	ld [hHighscoreLettersEntered], a
+	inc de
+	ld a, [de]
+	cp $60
+	jr nz, jr_000_1a4b
+
+	ld a, $0a
+	ld [de], a
+
+jr_000_1a4b:
+	ld a, d
+	ld [hHighscoreNamePointerHi], a
+	ld a, e
+	ld [hHighscoreNamePointerLo], a
+	ret
+
+Jump_000_1a52:
+	ld a, [hHighscoreLettersEntered]
+	and a
+	ret z
+
+	ld a, [de]
+	call WriteAInHBlank
+	ld a, [hHighscoreLettersEntered]
+	dec a
+	ld [hHighscoreLettersEntered], a
+	dec de
+	jr jr_000_1a4b

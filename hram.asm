@@ -25,6 +25,8 @@ hSpriteHidden    EQU $ff95
 hSpriteListPtrHi EQU $ff96
 hSpriteListPtrLo EQU $ff97
 
+hHighscoreBlink  EQU $ff9c
+
 hSavedIE        EQU $ffa1
 hDelayCounter   EQU $ffa6
 hDelayCounter2  EQU $ffa7
@@ -38,6 +40,12 @@ hTypeBLevel    EQU $ffc3
 hTypeBHigh     EQU $ffc4
 hMultiplayer   EQU $ffc5
 hDemoCountdown EQU $ffc6
+
+hHighscoreLettersEntered EQU $ffc6
+hHighscoreEnterName      EQU $ffc7
+hHighscorePosition       EQU $ffc8
+hHighscoreNamePointerHi  EQU $ffc9
+hHighscoreNamePointerLo  EQU $ffca
 
 hMasterSlave     EQU $ffcb
 hSerialDone      EQU $ffcc

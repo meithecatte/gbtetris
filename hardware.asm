@@ -197,6 +197,7 @@ STATF_VB      EQU  %00000001 ; V-Blank
 STATF_OAM     EQU  %00000010 ; OAM-RAM is used by system
 STATF_LCD     EQU  %00000011 ; Both OAM and VRAM used by system
 STATF_BUSY    EQU  %00000010 ; When set, VRAM access is unsafe
+STATF_MODE    EQU  %00000011
 
 
 ; --

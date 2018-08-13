@@ -351,22 +351,22 @@ HandleGameState::
 	dw HandleState3 ; 3
 	dw HandleState4 ; 4
 	dw HandleState5 ; 5
-	dw LoadTitlescreen ; STATE_LOAD_TITLESCREEN
-	dw HandleTitlescreen ; STATE_TITLESCREEN
-	dw LoadModeSelect ; STATE_LOAD_MODE_SELECT
+	dw LoadTitlescreen
+	dw HandleTitlescreen
+	dw LoadModeSelect
 	dw GenericEmptyRoutine2 ; 9
 	dw HandleState10 ; STATE_10
 	dw HandleState11 ; 11
 	dw HandleState12 ; 12
 	dw HandleState13 ; 13
-	dw HandleModeSelect ; STATE_MODE_SELECT
-	dw HandleMusicSelect ; 15
-	dw LoadTypeAMenu ; 16
+	dw HandleModeSelect
+	dw HandleMusicSelect
+	dw LoadTypeAMenu
 	dw HandleState17 ; 17
-	dw LoadTypeBMenu ; 18
+	dw LoadTypeBMenu
 	dw HandleState19 ; 19
 	dw HandleState20 ; 20
-	dw HandleState21 ; 21
+	dw HandleHighscoreEnterName
 	dw HandleState22
 	dw HandleState23 ; 23
 	dw HandleState24 ; 24
@@ -470,9 +470,9 @@ LoadTitlescreen::
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
-	ld [$ff00+$c7], a
+	ld [hHighscoreEnterName], a
 	call Call_000_22f3
-	call Call_000_26a5
+	call ResetGameplayVariablesMaybe
 	call LoadTitlescreenTileset
 
 	ld hl, $c800 ; TODO
@@ -1314,7 +1314,7 @@ Jump_000_0895:
 	ld [hRecvBuffer], a
 	ld [hSendBuffer], a
 	ld [$ff00+$d1], a
-	call Call_000_26a5
+	call ResetGameplayVariablesMaybe
 	call Call_000_22f3
 	call Call_000_204d
 	xor a
@@ -3230,13 +3230,13 @@ jr_000_1289:
 	ld [hGameState], a
 	ld hl, $9d08
 	ld b, $2f
-	call Call_000_1a63
+	call WriteBInHBlank
 	ld hl, $9d09
-	call Call_000_1a63
+	call WriteBInHBlank
 	ld hl, $9d28
-	call Call_000_1a63
+	call WriteBInHBlank
 	ld hl, $9d29
-	call Call_000_1a63
+	call WriteBInHBlank
 	ret
 
 HandleState2::
@@ -3291,9 +3291,9 @@ HandleState3::
 	jr nz, jr_000_1301
 
 	ld a, $9c
-	ld [$ff00+$c9], a
+	ld [hHighscoreNamePointerHi], a
 	ld a, $82
-	ld [$ff00+$ca], a
+	ld [hHighscoreNamePointerLo], a
 	ld a, $2c
 	ld [hGameState], a
 	ret
@@ -3323,7 +3323,7 @@ HandleState44::
 
 	ld a, $06
 	ld [hDelayCounter], a
-	ld a, [$ff00+$ca]
+	ld a, [hHighscoreNamePointerLo]
 	sub $82
 	ld e, a
 	ld d, $00
@@ -3331,25 +3331,25 @@ HandleState44::
 	add hl, de
 	push hl
 	pop de
-	ld a, [$ff00+$c9]
+	ld a, [hHighscoreNamePointerHi]
 	ld h, a
-	ld a, [$ff00+$ca]
+	ld a, [hHighscoreNamePointerLo]
 	ld l, a
 	ld a, [de]
-	call Call_000_1a62
+	call WriteAInHBlank
 	push hl
 	ld de, $0020
 	add hl, de
 	ld b, $b6
-	call Call_000_1a63
+	call WriteBInHBlank
 	pop hl
 	inc hl
 	ld a, $02
 	ld [wPlaySFX], a
 	ld a, h
-	ld [$ff00+$c9], a
+	ld [hHighscoreNamePointerHi], a
 	ld a, l
-	ld [$ff00+$ca], a
+	ld [hHighscoreNamePointerLo], a
 	cp $92
 	ret nz
 
@@ -3855,7 +3855,7 @@ LoadTypeAMenu::
 	ld [rLCDC], a
 	ld a, $11
 	ld [hGameState], a
-	ld a, [$ff00+$c7]
+	ld a, [hHighscoreEnterName]
 	and a
 	jr nz, jr_000_161e
 
@@ -3864,7 +3864,7 @@ LoadTypeAMenu::
 
 
 jr_000_161e:
-	ld a, $15
+	ld a, STATE_HIGHSCORE_ENTER_NAME
 
 jr_000_1620:
 	ld [hGameState], a
@@ -3972,7 +3972,7 @@ LoadTypeBMenu::
 	ld [rLCDC], a
 	ld a, $13
 	ld [hGameState], a
-	ld a, [$ff00+$c7]
+	ld a, [hHighscoreEnterName]
 	and a
 	jr nz, jr_000_16d4
 
@@ -3981,7 +3981,7 @@ LoadTypeBMenu::
 
 
 jr_000_16d4:
-	ld a, $15
+	ld a, STATE_HIGHSCORE_ENTER_NAME
 
 jr_000_16d6:
 	ld [hGameState], a
@@ -4246,213 +4246,13 @@ ClearOAM::
 
 INCLUDE "highscores.asm"
 
-HandleState21::
-	ld a, [$ff00+$c8]
-	ld hl, $99e4
-	ld de, $ffe0
-
-jr_000_197f:
-	dec a
-	jr z, jr_000_1985
-
-	add hl, de
-	jr jr_000_197f
-
-jr_000_1985:
-	ld a, [hDemoCountdown]
-	ld e, a
-	ld d, $00
-	add hl, de
-	ld a, [$ff00+$c9]
-	ld d, a
-	ld a, [$ff00+$ca]
-	ld e, a
-	ld a, [hDelayCounter]
-	and a
-	jr nz, jr_000_19a8
-
-	ld a, $07
-	ld [hDelayCounter], a
-	ld a, [$ff00+$9c]
-	xor $01
-	ld [$ff00+$9c], a
-	ld a, [de]
-	jr z, jr_000_19a5
-
-	ld a, $2f
-
-jr_000_19a5:
-	call Call_000_1a62
-
-jr_000_19a8:
-	ld a, [hKeysPressed]
-	ld b, a
-	ld a, [hKeysHeld]
-	ld c, a
-	ld a, $17
-	bit 6, b
-	jr nz, jr_000_19eb
-
-	bit 6, c
-	jr nz, jr_000_19e3
-
-	bit 7, b
-	jr nz, jr_000_1a14
-
-	bit 7, c
-	jr nz, jr_000_1a0c
-
-	bit 0, b
-	jr nz, jr_000_1a30
-
-	bit 1, b
-	jp nz, Jump_000_1a52
-
-	bit 3, b
-	ret z
-
-jr_000_19cc:
-	ld a, [de]
-	call Call_000_1a62
-	call PlaySelectedMusic
-	xor a
-	ld [$ff00+$c7], a
-	ld a, [$ff00+$c0]
-	cp $37
-	ld a, $11
-	jr z, jr_000_19e0
-
-	ld a, $13
-
-jr_000_19e0:
-	ld [hGameState], a
-	ret
-
-
-jr_000_19e3:
-	ld a, [$ff00+$aa]
-	dec a
-	ld [$ff00+$aa], a
-	ret nz
-
-	ld a, $09
-
-jr_000_19eb:
-	ld [$ff00+$aa], a
-	ld b, $26
-	ld a, [hStartAtLevel10]
-	and a
-	jr z, jr_000_19f6
-
-	ld b, $27
-
-jr_000_19f6:
-	ld a, [de]
-	cp b
-	jr nz, jr_000_1a04
-
-	ld a, $2e
-
-jr_000_19fc:
-	inc a
-
-jr_000_19fd:
-	ld [de], a
-	ld a, $01
-	ld [wPlaySFX], a
-	ret
-
-
-jr_000_1a04:
-	cp $2f
-	jr nz, jr_000_19fc
-
-	ld a, $0a
-	jr jr_000_19fd
-
-jr_000_1a0c:
-	ld a, [$ff00+$aa]
-	dec a
-	ld [$ff00+$aa], a
-	ret nz
-
-	ld a, $09
-
-jr_000_1a14:
-	ld [$ff00+$aa], a
-	ld b, $26
-	ld a, [hStartAtLevel10]
-	and a
-	jr z, jr_000_1a1f
-
-	ld b, $27
-
-jr_000_1a1f:
-	ld a, [de]
-	cp $0a
-	jr nz, jr_000_1a29
-
-	ld a, $30
-
-jr_000_1a26:
-	dec a
-	jr jr_000_19fd
-
-jr_000_1a29:
-	cp $2f
-	jr nz, jr_000_1a26
-
-	ld a, b
-	jr jr_000_19fd
-
-jr_000_1a30:
-	ld a, [de]
-	call Call_000_1a62
-	ld a, $02
-	ld [wPlaySFX], a
-	ld a, [hDemoCountdown]
-	inc a
-	cp $06
-	jr z, jr_000_19cc
-
-	ld [hDemoCountdown], a
-	inc de
-	ld a, [de]
-	cp $60
-	jr nz, jr_000_1a4b
-
-	ld a, $0a
-	ld [de], a
-
-jr_000_1a4b:
-	ld a, d
-	ld [$ff00+$c9], a
-	ld a, e
-	ld [$ff00+$ca], a
-	ret
-
-
-Jump_000_1a52:
-	ld a, [hDemoCountdown]
-	and a
-	ret z
-
-	ld a, [de]
-	call Call_000_1a62
-	ld a, [hDemoCountdown]
-	dec a
-	ld [hDemoCountdown], a
-	dec de
-	jr jr_000_1a4b
-
-Call_000_1a62:
+WriteAInHBlank:
 	ld b, a
 
-Call_000_1a63:
-jr_000_1a63:
+WriteBInHBlank:
 	ld a, [rSTAT]
-	and $03
-	jr nz, jr_000_1a63
+	and STATF_MODE
+	jr nz, WriteBInHBlank
 
 	ld [hl], b
 	ret
@@ -4469,7 +4269,7 @@ HandleState10::
 	ld a, $2f
 	call Call_000_2032
 	call Call_000_204d
-	call Call_000_26a5
+	call ResetGameplayVariablesMaybe
 	xor a
 	ld [$ff00+$e3], a
 IF !DEF(INTERNATIONAL)
@@ -4984,7 +4784,7 @@ jr_000_1d05:
 	ld c, $05
 
 jr_000_1d1c:
-	call Call_000_1a63
+	call WriteBInHBlank
 	inc l
 	dec c
 	jr nz, jr_000_1d1c
@@ -5004,7 +4804,7 @@ Call_000_1d26:
 
 jr_000_1d2e:
 	ld a, [de]
-	call Call_000_1a62
+	call WriteAInHBlank
 	inc de
 	inc l
 	dec c
@@ -6900,7 +6700,7 @@ Jump_000_268e:
 	ret
 
 
-Call_000_26a5: ; TODO
+ResetGameplayVariablesMaybe:: ; TODO
 	ld hl, $c0ac
 	ld b, $1b
 	xor a
@@ -6910,13 +6710,13 @@ jr_000_26ab:
 	dec b
 	jr nz, jr_000_26ab
 
-	ld hl, $c0a0
-	ld b, $03
+	ld hl, wScore
+	ld b, SCORE_SIZE
 
-jr_000_26b4:
+.clear_score:
 	ld [hl+], a
 	dec b
-	jr nz, jr_000_26b4
+	jr nz, .clear_score
 	ret
 
 

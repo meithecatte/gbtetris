@@ -27,7 +27,10 @@ STATE_10                            EQU 10
 STATE_MODE_SELECT                   EQU 14
 STATE_MUSIC_SELECT                  EQU 15
 STATE_LOAD_TYPE_A_MENU              EQU 16
+STATE_TYPE_A_MENU                   EQU 17
 STATE_LOAD_TYPE_B_MENU              EQU 18
+STATE_TYPE_B_MENU                   EQU 19
+STATE_HIGHSCORE_ENTER_NAME          EQU 21
 STATE_22                            EQU 22
 STATE_24                            EQU 24
 STATE_26                            EQU 26

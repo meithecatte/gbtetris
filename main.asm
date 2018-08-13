@@ -1,7 +1,4 @@
-; Disassembly of "Tetris (V1.0) (JU) [!].gb"
-; This file was created with mgbdis v1.1 - Game Boy ROM disassembler by Matt Currie.
-; https://github.com/mattcurrie/mgbdis
-
+INCLUDE "charmap.asm"
 INCLUDE "hardware.asm"
 INCLUDE "macros.asm"
 INCLUDE "constants.asm"
