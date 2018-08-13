@@ -416,25 +416,25 @@ HandleHighscoreEnterName::
 	ld a, [hKeysHeld]
 	ld c, a
 	ld a, 23 ; initial autofire countdown
-	bit PADB_UP, b
+	bit D_UP_BIT, b
 	jr nz, .pressed_up
 
-	bit PADB_UP, c
+	bit D_UP_BIT, c
 	jr nz, .holding_up
 
-	bit PADB_DOWN, b
+	bit D_DOWN_BIT, b
 	jr nz, .pressed_down
 
-	bit PADB_DOWN, c
+	bit D_DOWN_BIT, c
 	jr nz, .holding_down
 
-	bit PADB_A, b
+	bit A_BUTTON_BIT, b
 	jr nz, .pressed_a
 
-	bit PADB_B, b
+	bit B_BUTTON_BIT, b
 	jp nz, .pressed_b
 
-	bit PADB_START, b
+	bit START_BIT, b
 	ret z
 
 .pressed_start:
@@ -449,7 +449,7 @@ HandleHighscoreEnterName::
 	cp GAME_TYPE_A
 	ld a, STATE_TYPE_A_MENU
 	jr z, .set_game_state
-	ld a, STATE_TYPE_B_MENU
+	ld a, STATE_TYPE_B_LEVEL_SELECT
 .set_game_state:
 	ld [hGameState], a
 	ret

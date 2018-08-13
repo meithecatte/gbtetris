@@ -29,7 +29,8 @@ STATE_MUSIC_SELECT                  EQU 15
 STATE_LOAD_TYPE_A_MENU              EQU 16
 STATE_TYPE_A_MENU                   EQU 17
 STATE_LOAD_TYPE_B_MENU              EQU 18
-STATE_TYPE_B_MENU                   EQU 19
+STATE_TYPE_B_LEVEL_SELECT           EQU 19
+STATE_TYPE_B_HIGH_SELECT            EQU 20
 STATE_HIGHSCORE_ENTER_NAME          EQU 21
 STATE_22                            EQU 22
 STATE_24                            EQU 24
@@ -40,7 +41,7 @@ STATE_LOAD_COPYRIGHT                EQU 36
 STATE_COPYRIGHT                     EQU 37
 STATE_LOAD_MULTIPLAYER_MUSIC_SELECT EQU 42
 STATE_43                            EQU 43
-STATE_MORE_COPYRIGHT                EQU 53
+STATE_MORE_COPYRIGHT                EQU 53 ; INTERNATIONAL only
 
 ; hMasterSlave
 SERIAL_MASTER EQU $29

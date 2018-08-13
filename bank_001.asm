@@ -22,7 +22,10 @@ INCBIN "gfx/mode_select_tilemap.bin"
 TypeATilemap::
 INCBIN "gfx/type_a_menu_tilemap.bin"
 
-INCBIN "baserom.gb", $4fef, $525c - $4fef
+TypeBTilemap::
+INCBIN "gfx/type_b_menu_tilemap.bin"
+
+INCBIN "baserom.gb", $5157, $525c - $5157
 
 MultiplayerMenuTilemap::
 INCBIN "gfx/multiplayer_menu_tilemap.bin"
