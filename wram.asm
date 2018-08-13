@@ -2,6 +2,8 @@ SECTION "OAM Buffer", WRAM0[$c000]
 wOAMBuffer:: ds 160
 wOAMBuffer_End::
 
+wScore:: ds 3
+
 SECTION "Sprites", WRAM0[$c200]
 ; offset 0: SPRITE_HIDDEN/SPRITE_VISIBLE
 ; offset 1: Y
