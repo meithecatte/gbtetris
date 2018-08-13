@@ -468,7 +468,7 @@ LoadTitlescreen::
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	ld [$ff00+$9b], a
-	ld [$ff00+$fb], a
+	ld [hHighscorePtrHi], a
 	ld [$ff00+$9f], a
 	ld [$ff00+$e3], a
 IF !DEF(INTERNATIONAL)
@@ -1310,7 +1310,7 @@ Jump_000_0895:
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	ld [$ff00+$9b], a
-	ld [$ff00+$fb], a
+	ld [hHighscorePtrHi], a
 	ld [$ff00+$9f], a
 	ld [hSerialDone], a
 	ld [rSB], a
@@ -1773,7 +1773,7 @@ DelayLoop::
 Call_000_0b10:
 	push hl
 	push bc
-	ld a, [$ff00+$fc]
+	ld a, [hHighscorePtrLo]
 	and $fc
 	ld c, a
 	ld h, $03
@@ -1815,7 +1815,7 @@ Call_000_0b10:
 	ld a, d
 	ld [$ff00+$ae], a
 	ld a, e
-	ld [$ff00+$fc], a
+	ld [hHighscorePtrLo], a
 	pop bc
 	pop hl
 	ret
@@ -3853,7 +3853,7 @@ LoadTypeAMenu::
 	ld hl, TypeAMenuCursorPositions
 	call UpdateDigitCursor
 	call UpdateTwoSprites
-	call Call_000_17f9
+	call RenderTypeAHighscores
 	call CopyHighscoresFromTilemapBuffer
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
@@ -3919,7 +3919,7 @@ jr_000_165a:
 	ld de, $c201
 	ld hl, TypeAMenuCursorPositions
 	call UpdateDigitCursor
-	call Call_000_17f9
+	call RenderTypeAHighscores
 
 jr_000_1667:
 	call UpdateTwoSprites
@@ -3970,7 +3970,7 @@ LoadTypeBMenu::
 	ld hl, $17a5
 	call UpdateDigitCursor
 	call UpdateTwoSprites
-	call Call_000_1813
+	call RenderTypeBHighscores
 	call CopyHighscoresFromTilemapBuffer
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
@@ -4044,7 +4044,7 @@ jr_000_1717:
 	ld de, $c201
 	ld hl, $1736
 	call UpdateDigitCursor
-	call Call_000_1813
+	call RenderTypeBHighscores
 
 jr_000_1724:
 	call UpdateTwoSprites
@@ -4141,7 +4141,7 @@ jr_000_1786:
 	ld de, $c211
 	ld hl, $17a5
 	call UpdateDigitCursor
-	call Call_000_1813
+	call RenderTypeBHighscores
 
 jr_000_1793:
 	call UpdateTwoSprites
@@ -4248,61 +4248,60 @@ ClearOAM::
 	ret
 
 
-Call_000_17f9:
+RenderTypeAHighscores:
 	call FillHighscoreTilemapWithDots
-	ld a, [$ff00+$c2]
-	ld hl, $d654
-	ld de, $001b
+	ld a, [hTypeALevel]
+	ld hl, wTypeAHighscores
+	ld de, HIGHSCORE_ENTRY_SIZE * HIGHSCORE_ENTRY_COUNT
 
-jr_000_1804:
+.loop:
 	and a
-	jr z, jr_000_180b
+	jr z, .end
 
 	dec a
 	add hl, de
-	jr jr_000_1804
+	jr .loop
 
-jr_000_180b:
+.end:
 	inc hl
 	inc hl
-	push hl
+	push hl ; ld d, h / ld l, e is 12 T-cycles faster
 	pop de
-	call Call_000_1864
+	call RenderHighscores ; why no TCO?
 	ret
 
-
-Call_000_1813:
+RenderTypeBHighscores:
 	call FillHighscoreTilemapWithDots
-	ld a, [$ff00+$c3]
-	ld hl, $d000
-	ld de, $00a2
+	ld a, [hTypeBLevel]
+	ld hl, wTypeBHighscores
+	ld de, HIGHSCORE_ENTRY_SIZE * HIGHSCORE_ENTRY_COUNT * TYPE_B_HIGH_COUNT
 
-jr_000_181e:
+.level_loop:
 	and a
-	jr z, jr_000_1825
+	jr z, .got_level_pointer
 
 	dec a
 	add hl, de
-	jr jr_000_181e
+	jr .level_loop
 
-jr_000_1825:
-	ld a, [$ff00+$c4]
-	ld de, $001b
+.got_level_pointer:
+	ld a, [hTypeBHigh]
+	ld de, HIGHSCORE_ENTRY_SIZE * HIGHSCORE_ENTRY_COUNT
 
-jr_000_182a:
+.high_loop:
 	and a
-	jr z, jr_000_1831
+	jr z, .end
 
 	dec a
 	add hl, de
-	jr jr_000_182a
+	jr .high_loop
 
-jr_000_1831:
+.end:
 	inc hl
 	inc hl
 	push hl
 	pop de
-	call Call_000_1864
+	call RenderHighscores ; why no TCO?
 	ret
 
 
@@ -4354,49 +4353,47 @@ jr_000_185d:
 	dec de
 	dec b
 	jr nz, jr_000_185d
-
 	ret
 
-
-Call_000_1864:
+RenderHighscores::
 	ld a, d
-	ld [$ff00+$fb], a
+	ld [hHighscorePtrHi], a
 	ld a, e
-	ld [$ff00+$fc], a
-	ld c, $03
+	ld [hHighscorePtrLo], a
+	ld c, HIGHSCORE_ENTRY_COUNT
 
-jr_000_186c:
-	ld hl, $c0a2
+.entry_loop:
+	ld hl, $c0a2 ; I don't know what the purpose of this buffer is. It seems to always be filled with zeroes
 	push de
-	ld b, $03
+	ld b, HIGHSCORE_SCORE_SIZE
 
-jr_000_1872:
+.byte_loop:
 	ld a, [de]
 	sub [hl]
-	jr c, jr_000_1886
+	jr c, .unk1886
 
-	jr nz, jr_000_187d
+	jr nz, .next_entry
 
 	dec l
 	dec de
 	dec b
-	jr nz, jr_000_1872
+	jr nz, .byte_loop
 
-jr_000_187d:
+.next_entry:
 	pop de
 	inc de
 	inc de
 	inc de
 	dec c
-	jr nz, jr_000_186c
+	jr nz, .entry_loop
 
-	jr jr_000_18e4
+	jr .unk18e4
 
-jr_000_1886:
+.unk1886:
 	pop de
-	ld a, [$ff00+$fb]
+	ld a, [hHighscorePtrHi]
 	ld d, a
-	ld a, [$ff00+$fc]
+	ld a, [hHighscorePtrLo]
 	ld e, a
 	push de
 	push bc
@@ -4408,23 +4405,23 @@ jr_000_1886:
 	dec hl
 	dec hl
 
-jr_000_1898:
+.unk1898:
 	dec c
-	jr z, jr_000_18a0
+	jr z, .unk18a0
 
 	call Call_000_185b
-	jr jr_000_1898
+	jr .unk1898
 
-jr_000_18a0:
+.unk18a0:
 	ld hl, $c0a2
 	ld b, $03
 
-jr_000_18a5:
+.unk18a5:
 	ld a, [hl-]
 	ld [de], a
 	dec e
 	dec b
-	jr nz, jr_000_18a5
+	jr nz, .unk18a5
 
 	pop bc
 	pop de
@@ -4439,23 +4436,23 @@ jr_000_18a5:
 	pop de
 	pop hl
 
-jr_000_18bc:
+.unk18bc:
 	dec c
-	jr z, jr_000_18c6
+	jr z, .unk18c6
 
 	ld b, $06
 	call Call_000_185d
-	jr jr_000_18bc
+	jr .unk18bc
 
-jr_000_18c6:
+.unk18c6:
 	ld a, $60
 	ld b, $05
 
-jr_000_18ca:
+.unk18ca:
 	ld [de], a
 	dec de
 	dec b
-	jr nz, jr_000_18ca
+	jr nz, .unk18ca
 
 	ld a, $0a
 	ld [de], a
@@ -4470,11 +4467,11 @@ jr_000_18ca:
 	ld [wPlaySong], a
 	ld [$ff00+$c7], a
 
-jr_000_18e4:
+.unk18e4:
 	ld de, $c9ac
-	ld a, [$ff00+$fb]
+	ld a, [hHighscorePtrHi]
 	ld h, a
-	ld a, [$ff00+$fc]
+	ld a, [hHighscorePtrLo]
 	ld l, a
 	ld b, $03
 
@@ -4591,19 +4588,19 @@ FillHighscoreTilemapWithDots::
 	ld a, $60
 	ld c, HIGHSCORE_ENTRY_COUNT
 
-jr_000_196a:
-	ld b, $0e
+.row_loop:
+	ld b, 14
 	push hl
 
-jr_000_196d:
+.tile_loop:
 	ld [hl+], a
 	dec b
-	jr nz, jr_000_196d
+	jr nz, .tile_loop
 
 	pop hl
 	add hl, de
 	dec c
-	jr nz, jr_000_196a
+	jr nz, .row_loop
 	ret
 
 HandleState21::
@@ -4824,7 +4821,7 @@ HandleState10::
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	ld [$ff00+$9b], a
-	ld [$ff00+$fb], a
+	ld [hHighscorePtrHi], a
 	ld [$ff00+$9f], a
 	ld a, $2f
 	call Call_000_2032
