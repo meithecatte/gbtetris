@@ -5,6 +5,7 @@ wOAMBuffer_End::
 wScore:: ds 3
 wUnk1:: ds 9
 wUnk2:: ds 27
+wUnk3::
 
 SECTION "Sprites", WRAM0[$c200]
 ; offset 0: SPRITE_HIDDEN/SPRITE_VISIBLE

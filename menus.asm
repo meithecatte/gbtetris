@@ -265,7 +265,7 @@ HandleTypeAMenu::
 	ld de, wSpriteList sprite 0
 	call HandleBlinkingCursor
 	ld hl, hTypeALevel
-	ld a, STATE_10
+	ld a, STATE_LOAD_PLAYFIELD
 	bit START_BIT, b
 	jr nz, LoadTypeAMenu.set_game_state
 
@@ -376,7 +376,7 @@ HandleTypeBLevelSelect::
 	ld de, wSpriteList sprite 0
 	call HandleBlinkingCursor
 	ld hl, $ffc3
-	ld a, STATE_10
+	ld a, STATE_LOAD_PLAYFIELD
 	bit START_BIT, b
 	jr nz, HandleTypeBLevelSelect_SetState
 
@@ -455,7 +455,7 @@ HandleTypeBHighSelect::
 	call HandleBlinkingCursor
 	ld hl, hTypeBHigh
 
-	ld a, STATE_10
+	ld a, STATE_LOAD_PLAYFIELD
 	bit START_BIT, b
 	jr nz, HantleTypeBHighSelect_SetState
 

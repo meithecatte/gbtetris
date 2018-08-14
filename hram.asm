@@ -31,6 +31,8 @@ hSavedIE        EQU $ffa1
 hDelayCounter   EQU $ffa6
 hDelayCounter2  EQU $ffa7
 
+hLevel EQU $ffa9
+
 hMenuAutoFireCountdown EQU $ffaa
 
 hOAMDMA EQU $ffb6 ; ends $ffbf, 10 bytes long
@@ -46,8 +48,8 @@ hDemoCountdown EQU $ffc6
 hHighscoreLettersEntered EQU $ffc6
 hHighscoreEnterName      EQU $ffc7
 hHighscorePosition       EQU $ffc8
-hHighscoreNamePointerHi  EQU $ffc9
-hHighscoreNamePointerLo  EQU $ffca
+hHighscoreNamePtrHi      EQU $ffc9
+hHighscoreNamePtrLo      EQU $ffca
 
 hMasterSlave     EQU $ffcb
 hSerialDone      EQU $ffcc
@@ -63,5 +65,6 @@ hEnableHighscoreVBlank EQU $ffe8
 
 hMultiplayerNewMusic EQU $fff0
 hStartAtLevel10      EQU $fff4
+
 hHighscorePtrHi EQU $fffb
 hHighscorePtrLo EQU $fffc

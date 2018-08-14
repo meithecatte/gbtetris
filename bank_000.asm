@@ -283,7 +283,7 @@ HandleGameState::
 	dw HandleTitlescreen
 	dw LoadModeSelect
 	dw GenericEmptyRoutine2
-	dw HandleState10 ; STATE_10
+	dw LoadPlayfield
 	dw HandleState11 ; 11
 	dw HandleState12 ; 12
 	dw HandleState13 ; 13
@@ -488,7 +488,7 @@ StartDemo::
 
 .got_params:
 	ld [hDemoNumber], a
-	ld a, STATE_10
+	ld a, STATE_LOAD_PLAYFIELD
 	ld [hGameState], a
 	call DisableLCD
 	call LoadTileset
@@ -933,9 +933,9 @@ jr_000_0703:
 	ld de, MultiplayerMenuTilemap
 	call LoadTilemapA
 	call ClearOAM
-	ld a, $2f
-	call Call_000_2038
-	ld a, 3 ; why use a different constant than usual? also Call_000_2038 does not modify A.
+	ld a, " "
+	call FillPlayfieldWithTile
+	ld a, 3 ; why use a different constant than usual? also FillPlayfieldWithTile does not modify A.
 	ld [hSendBufferValid], a
 	xor a
 	ld [rSB], a
@@ -975,7 +975,7 @@ jr_000_074e:
 	call $0792
 	ld hl, $c200
 	ld de, $2741
-	ld c, $02
+	ld c, 2
 	call LoadSprites
 	call Call_000_087b
 	call UpdateTwoSprites
@@ -1234,7 +1234,7 @@ Jump_000_0895:
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	ld [$ff00+$9b], a
-	ld [hHighscorePtrHi], a
+	ld [$ff00+$fb], a
 	ld [$ff00+$9f], a
 	ld [hSerialDone], a
 	ld [rSB], a
@@ -1266,14 +1266,14 @@ jr_000_08cd:
 	call LoadTilemap
 	ld de, $288d
 	ld hl, $9c63
-	ld c, $0a
-	call Call_000_1fd8
+	ld c, 10
+	call Copy8TilesWide
 	ld hl, $c200
-	ld de, $2713
-	call Call_000_270a
+	ld de, CurrentTetriminoSpriteDescriptor
+	call LoadGameplaySprite
 	ld hl, $c210
-	ld de, $271b
-	call Call_000_270a
+	ld de, NextTetrominoSpriteDescriptor
+	call LoadGameplaySprite
 	ld hl, $9951
 	ld a, $30
 	ld [$ff00+$9e], a
@@ -2236,7 +2236,7 @@ jr_000_0da4:
 
 jr_000_0db3:
 	ld hl, $c200
-	ld c, $03
+	ld c, 3
 	call LoadSprites
 	ld a, $19
 	ld [hDelayCounter], a
@@ -2418,7 +2418,7 @@ jr_000_0e95:
 
 jr_000_0ea4:
 	ld hl, $c200
-	ld c, $02
+	ld c, 2
 	call LoadSprites
 	ld a, $19
 	ld [hDelayCounter], a
@@ -3071,7 +3071,7 @@ HandleState38::
 	ld [hl], $b8
 	ld de, $27c5
 	ld hl, $c200
-	ld c, $03
+	ld c, 3
 	call LoadSprites
 	ld a, $03
 	call UpdateNSprites
@@ -3219,9 +3219,9 @@ HandleState3::
 	jr nz, jr_000_1301
 
 	ld a, $9c
-	ld [hHighscoreNamePointerHi], a
+	ld [hHighscoreNamePtrHi], a
 	ld a, $82
-	ld [hHighscoreNamePointerLo], a
+	ld [hHighscoreNamePtrLo], a
 	ld a, $2c
 	ld [hGameState], a
 	ret
@@ -3251,7 +3251,7 @@ HandleState44::
 
 	ld a, $06
 	ld [hDelayCounter], a
-	ld a, [hHighscoreNamePointerLo]
+	ld a, [hHighscoreNamePtrLo]
 	sub $82
 	ld e, a
 	ld d, $00
@@ -3259,9 +3259,9 @@ HandleState44::
 	add hl, de
 	push hl
 	pop de
-	ld a, [hHighscoreNamePointerHi]
+	ld a, [hHighscoreNamePtrHi]
 	ld h, a
-	ld a, [hHighscoreNamePointerLo]
+	ld a, [hHighscoreNamePtrLo]
 	ld l, a
 	ld a, [de]
 	call WriteAInHBlank
@@ -3275,9 +3275,9 @@ HandleState44::
 	ld a, $02
 	ld [wPlaySFX], a
 	ld a, h
-	ld [hHighscoreNamePointerHi], a
+	ld [hHighscoreNamePtrHi], a
 	ld a, l
-	ld [hHighscoreNamePointerLo], a
+	ld [hHighscoreNamePtrLo], a
 	cp $92
 	ret nz
 
@@ -3330,7 +3330,7 @@ HandleState46::
 	call Call_000_1216
 	ld de, $27d7
 	ld hl, $c200
-	ld c, $03
+	ld c, 3
 	call LoadSprites
 	ld a, [$ff00+$f3]
 	ld [$c203], a
@@ -3476,7 +3476,7 @@ Call_000_145e:
 	ld a, $03
 	ld [$dff8], a
 	ld b, $02
-	ld hl, $c210
+	ld hl, wSpriteList sprite 1
 
 jr_000_1470:
 	ld a, [hl]
@@ -3512,7 +3512,6 @@ jr_000_1470:
 	ld [hl], e
 	ret
 
-
 	ld [hl], h
 	ld [hl], h
 	ld [hl], h
@@ -3526,7 +3525,7 @@ jr_000_149b:
 	ld [hl], a
 	inc de
 	push de
-	ld de, $0020
+	ld de, BG_MAP_WIDTH
 	add hl, de
 	pop de
 	dec b
@@ -3563,13 +3562,12 @@ LoadSprites::
 ClearOAM::
 	xor a
 	ld hl, wOAMBuffer
-	length b, wOAMBuffer
+	ld b, wOAMBuffer_End - wOAMBuffer
 .loop:
 	ld [hl+], a
 	dec b
 	jr nz, .loop
 	ret
-
 
 INCLUDE "highscores.asm"
 
@@ -3584,14 +3582,15 @@ WriteBInHBlank:
 	ld [hl], b
 	ret
 
-HandleState10::
+LoadPlayfield::
 	call DisableLCD
 	xor a
-	ld [$c210], a
+	assert SPRITE_VISIBLE == 0
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	ld [$ff00+$9b], a
-	ld [hHighscorePtrHi], a
+	ld [$ff00+$fb], a
 	ld [$ff00+$9f], a
 	ld a, $2f
 	call Call_000_2032
@@ -3603,30 +3602,28 @@ IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
 	call ClearOAM
-	ld a, [$ff00+$c0]
+	ld a, [hGameType]
 	ld de, $403f
-	ld hl, $ffc3
-	cp $77
+	ld hl, hTypeBLevel
+	cp GAME_TYPE_B
 	ld a, $50
-	jr z, jr_000_1aa5
-
+	jr z, .got_game_type_stuff
 	ld a, $f1
-	ld hl, $ffc2
+	ld hl, hTypeALevel
 	ld de, $3ed7
-
-jr_000_1aa5:
+.got_game_type_stuff:
 	push de
 	ld [$ff00+$e6], a
 	ld a, [hl]
-	ld [$ff00+$a9], a
+	ld [hLevel], a
 	call LoadTilemapA
 	pop de
-	ld hl, $9c00
+	ld hl, vBGMapB
 	call LoadTilemap
 	ld de, $288d
 	ld hl, $9c63
-	ld c, $0a
-	call Call_000_1fd8
+	ld c, 10
+	call Copy8TilesWide
 	ld h, $98
 	ld a, [$ff00+$e6]
 	ld l, a
@@ -3644,15 +3641,15 @@ jr_000_1aa5:
 	ld [hl], $27
 
 jr_000_1ad7:
-	ld hl, $c200
-	ld de, $2713
-	call Call_000_270a
-	ld hl, $c210
-	ld de, $271b
-	call Call_000_270a
+	ld hl, wSpriteList sprite 0
+	ld de, CurrentTetriminoSpriteDescriptor
+	call LoadGameplaySprite
+	ld hl, wSpriteList sprite 1
+	ld de, NextTetrominoSpriteDescriptor
+	call LoadGameplaySprite
 	ld hl, $9951
-	ld a, [$ff00+$c0]
-	cp $77
+	ld a, [hGameType]
+	cp GAME_TYPE_B
 	ld a, $25
 	jr z, jr_000_1af5
 
@@ -3675,23 +3672,26 @@ IF DEF(INTERNATIONAL)
 	ld a, [$c0de]
 	and a
 	jr z, .skip
-	ld a, $80
-	ld [$c210], a
+	ld a, SPRITE_HIDDEN
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 .skip
 ENDC
 	call UpdateFirstSprite
 	xor a
 	ld [$ff00+$a0], a
-	ld a, [$ff00+$c0]
-	cp $77
+	ld a, [hGameType]
+	cp GAME_TYPE_B
 	jr nz, jr_000_1b3b
 
 	ld a, $34
 	ld [$ff00+$99], a
-	ld a, [$ff00+$c4]
-	ld hl, $98b0
+
+	; display the "high" value on screen
+	ld a, [hTypeBHigh]
+	ld hl, vBGMapA + 5 * BG_MAP_WIDTH + 16
 	ld [hl], a
-	ld h, $9c
+	assert LOW(vBGMapA) == LOW(vBGMapB)
+	ld h, HIGH(vBGMapB + 5 * BG_MAP_WIDTH + 16)
 	ld [hl], a
 	and a
 	jr z, jr_000_1b3b
@@ -3699,20 +3699,21 @@ ENDC
 	ld b, a
 	ld a, [hDemoNumber]
 	and a
-	jr z, jr_000_1b31
+	jr z, .not_demo
 
 	call Call_000_1b76
 	jr jr_000_1b3b
 
-jr_000_1b31:
+.not_demo:
 	ld a, b
-	ld de, $ffc0
+	ld de, hGameType
 	ld hl, $9a02
 	call Call_000_1bc3
 
 jr_000_1b3b:
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
+	assert STATE_00 == 0
 	xor a
 	ld [hGameState], a
 	ret
@@ -3962,7 +3963,6 @@ HandleState0::
 	call Call_000_0620
 	ret
 
-
 jr_000_1c4f:
 	bit 2, a
 	ret z
@@ -3972,16 +3972,16 @@ jr_000_1c4f:
 	ld [$c0de], a
 	jr z, jr_000_1c65
 
-	ld a, $80
+	ld a, SPRITE_HIDDEN
 
 jr_000_1c5e:
-	ld [$c210], a
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 	call UpdateSecondSprite
 	ret
 
-
 jr_000_1c65:
 	xor a
+	assert SPRITE_VISIBLE == 0
 	jr jr_000_1c5e
 
 Call_000_1c68:
@@ -3995,18 +3995,18 @@ Call_000_1c68:
 	ret nz
 
 	ld a, [hKeysPressed]
-	bit 3, a
+	bit START_BIT, a
 	jr z, jr_000_1c4f
 
 	ld a, [hMultiplayer]
 	and a
-	jr nz, jr_000_1cc5
+	jr nz, .unk1cc5
 
 	ld hl, $ff40
 	ld a, [$ff00+$ab]
 	xor $01
 	ld [$ff00+$ab], a
-	jr z, jr_000_1cb5
+	jr z, .unk1cb5
 
 	set 3, [hl]
 	ld a, $01
@@ -4015,41 +4015,40 @@ Call_000_1c68:
 	ld de, $9d4e
 	ld b, $04
 
-jr_000_1c9a:
+.unk1c9a:
 	ld a, [rSTAT]
 	and $03
-	jr nz, jr_000_1c9a
+	jr nz, .unk1c9a
 
 	ld a, [hl+]
 	ld [de], a
 	inc de
 	dec b
-	jr nz, jr_000_1c9a
+	jr nz, .unk1c9a
 
 	ld a, $80
 
-jr_000_1ca8:
-	ld [$c210], a
+.unk1ca8:
+	ld [wSpriteList sprite 1], a
 
-jr_000_1cab:
-	ld [$c200], a
+.unk1cab:
+	ld [wSpriteList sprite 0], a
 	call UpdateFirstSprite
 	call UpdateSecondSprite
 	ret
 
-
-jr_000_1cb5:
+.unk1cb5:
 	res 3, [hl]
 	ld a, $02
 	ld [$df7f], a
 	ld a, [$c0de]
 	and a
-	jr z, jr_000_1ca8
+	jr z, .unk1ca8
 
 	xor a
-	jr jr_000_1cab
+	jr .unk1cab
 
-jr_000_1cc5:
+.unk1cc5:
 	ld a, [hMasterSlave]
 	cp $29
 	ret nz
@@ -4067,7 +4066,6 @@ jr_000_1cc5:
 	ld [$ff00+$f1], a
 	call Call_000_1d26
 	ret
-
 
 Call_000_1ce3:
 	ld a, [$ff00+$ab]
@@ -4559,12 +4557,12 @@ jr_000_1f92:
 	call Call_000_2032
 	ld hl, $c843
 	ld de, $2992
-	ld c, $07
-	call Call_000_1fd8
+	ld c, 7
+	call Copy8TilesWide
 	ld hl, $c983
 	ld de, $29ca
-	ld c, $06
-	call Call_000_1fd8
+	ld c, 6
+	call Copy8TilesWide
 	ld a, [$ff00+$c0]
 	cp $37
 	jr nz, jr_000_1fc7
@@ -4600,27 +4598,25 @@ jr_000_1fcc:
 	ld [hGameState], a
 	ret
 
-
-Call_000_1fd8:
-jr_000_1fd8:
-	ld b, $08
+Copy8TilesWide::
+.row_loop:
+	ld b, 8
 	push hl
 
-jr_000_1fdb:
+.tile_loop:
 	ld a, [de]
 	ld [hl+], a
 	inc de
 	dec b
-	jr nz, jr_000_1fdb
+	jr nz, .tile_loop
 
 	pop hl
 	push de
-	ld de, $0020
+	ld de, BG_MAP_WIDTH
 	add hl, de
 	pop de
 	dec c
-	jr nz, jr_000_1fd8
-
+	jr nz, .row_loop
 	ret
 
 
@@ -4680,32 +4676,28 @@ jr_000_2024:
 
 	ret
 
-
 Call_000_2032:
 	push af
 	ld a, $02
 	ld [$ff00+$e3], a
 	pop af
 	; fallthrough
-Call_000_2038:
-	ld hl, $c802
-	ld c, $12
-	ld de, $0020
-
-jr_000_2040:
+FillPlayfieldWithTile::
+	ld hl, wTileMap + 0 * BG_MAP_WIDTH + 2
+	ld c, SCREEN_HEIGHT
+	ld de, BG_MAP_WIDTH
+.row_loop:
 	push hl
-	ld b, $0a
-
-jr_000_2043:
+	ld b, PLAYFIELD_WIDTH
+.inner_loop:
 	ld [hl+], a
 	dec b
-	jr nz, jr_000_2043
+	jr nz, .inner_loop
 
 	pop hl
 	add hl, de
 	dec c
-	jr nz, jr_000_2040
-
+	jr nz, .row_loop
 	ret
 
 
@@ -6022,10 +6014,9 @@ Jump_000_268e:
 	cp $05
 	ret nz
 
-	ld a, $04
+	ld a, STATE_04
 	ld [hGameState], a
 	ret
-
 
 ResetGameplayVariablesMaybe:: ; TODO
 	ld hl, wUnk2
@@ -6046,7 +6037,7 @@ jr_000_26ab:
 	jr nz, .clear_score
 	ret
 
-
+Unused_PrintHex::
 	ld a, [hl]
 	and $f0
 	swap a
@@ -6056,7 +6047,6 @@ jr_000_26ab:
 	inc e
 	ld [de], a
 	ret
-
 
 UpdateTwoSprites::
 	ld a, $02
@@ -6105,46 +6095,35 @@ unk26fd::
 	ret
 
 
-Call_000_270a:
-jr_000_270a:
+; there's no reason not to use LoadSprites, apart from the free EI
+LoadGameplaySprite:
 	ld a, [de]
-	cp $ff
+	cp -1
 	ret z
 
 	ld [hl+], a
 	inc de
-	jr jr_000_270a
-
+	jr LoadGameplaySprite
+	; fallthrough
 EmptyInterrupt:
 	reti
 
-	nop
-	jr jr_000_2755
+CurrentTetriminoSpriteDescriptor::
+	db SPRITE_VISIBLE, 24, 63, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, -1
 
-	nop
-	add b
-	nop
-	nop
-	rst $38
-	nop
-	add b
-	adc a
-	nop
-	add b
-	nop
-	nop
-	rst $38
+NextTetrominoSpriteDescriptor::
+	db SPRITE_VISIBLE, 128, 143, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, -1
 
 ModeSelectSpriteList::
-	db SPRITE_VISIBLE, 112, 55, SPRITE_TYPE_A, 0, 0
-	db SPRITE_VISIBLE, 56,  55, SPRITE_TYPE_A, 0, 0
+	db SPRITE_VISIBLE, 112, 55, SPRITE_TYPE_A, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
+	db SPRITE_VISIBLE, 56,  55, SPRITE_TYPE_A, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
 
 TypeAMenuSpriteList::
-	db SPRITE_VISIBLE, 64, 52, SPRITE_DIGIT_0, 0, 0
+	db SPRITE_VISIBLE, 64, 52, SPRITE_DIGIT_0, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
 
 TypeBMenuSpriteList::
-	db SPRITE_VISIBLE, 64, 28, SPRITE_DIGIT_0, 0, 0
-	db SPRITE_VISIBLE, 64, 116, SPRITE_DIGIT_0, 0, 0
+	db SPRITE_VISIBLE, 64, 28, SPRITE_DIGIT_0, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
+	db SPRITE_VISIBLE, 64, 116, SPRITE_DIGIT_0, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
 
 	nop
 	ld b, b
@@ -6349,14 +6328,13 @@ CopyBytes::
 
 LoadTileset::
 	call LoadFont
-	length bc, GFX_Common
+	ld bc, 10 tiles
 	call CopyBytes
 	ld hl, GFX_Common2
-	ld de, vBGTiles tile $30 ; redundant. You even make use of this three lines above.
-	length bc, GFX_Common2
+	ld de, vBGTiles tile $30 ; necessary, since GFX_Common has an unused tile that gets overwritten
+	ld bc, 208 tiles
 	call CopyBytes ; why no TCO?
 	ret
-
 
 LoadFont::
 	ld hl, GFX_Font
@@ -6819,30 +6797,34 @@ jr_000_29d5:
 ReadJoypad::
 	ld a, JOYP_DPAD
 	ld [rJOYP], a
+
+REPT 2
 	ld a, [rJOYP]
-	ld a, [rJOYP]
+ENDR
+
 IF DEF(INTERNATIONAL)
-	ld a, [rJOYP]
-	ld a, [rJOYP]
+	REPT 2
+		ld a, [rJOYP]
+	ENDR
 ENDC
+
 	cpl
 	and $0f
 	swap a
 	ld b, a
 	ld a, JOYP_BUTTONS
 	ld [rJOYP], a
+
+REPT 6
 	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
+ENDR
+
 IF DEF(INTERNATIONAL)
-	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
-	ld a, [rJOYP]
+	REPT 4
+		ld a, [rJOYP]
+	ENDR
 ENDC
+
 	cpl
 	and $0f
 	or b
@@ -6865,7 +6847,7 @@ Call_000_2a2b:
 	srl a
 	ld de, $0000
 	ld e, a
-	ld hl, $9800
+	ld hl, vBGMapA
 	ld b, $20
 
 jr_000_2a3e:
@@ -6992,8 +6974,6 @@ GFX_Common2::
 INCBIN "gfx/common2.2bpp"
 GFX_Common2_End::
 
-IF DEF(INTERNATIONAL)
-	INCBIN "baserom11.gb", $3f3f, $4000 - $3f3f
-ELSE
 	INCBIN "baserom.gb", $3f87, $4000 - $3f87
-ENDC
+INCBIN "baserom.gb", $4000, $41A7 - $4000
+

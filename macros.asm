@@ -18,3 +18,4 @@ ENDM
 
 tile EQUS "+ 16 *"
 sprite EQUS "+ SPRITE_SIZE *"
+tiles EQUS "* 16"

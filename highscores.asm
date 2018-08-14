@@ -220,9 +220,9 @@ ENDR
 	ld a, "A"
 	ld [de], a
 	ld a, d
-	ld [hHighscoreNamePointerHi], a
+	ld [hHighscoreNamePtrHi], a
 	ld a, e
-	ld [hHighscoreNamePointerLo], a
+	ld [hHighscoreNamePtrLo], a
 	xor a
 	ld [hHighscoreBlink], a
 	ld [hHighscoreLettersEntered], a
@@ -389,9 +389,9 @@ HandleHighscoreEnterName::
 	ld e, a
 	ld d, 0
 	add hl, de
-	ld a, [hHighscoreNamePointerHi]
+	ld a, [hHighscoreNamePtrHi]
 	ld d, a
-	ld a, [hHighscoreNamePointerLo]
+	ld a, [hHighscoreNamePtrLo]
 	ld e, a
 	ld a, [hDelayCounter]
 	and a
@@ -547,9 +547,9 @@ HandleHighscoreEnterName::
 
 .save_tilemap_pointer:
 	ld a, d
-	ld [hHighscoreNamePointerHi], a
+	ld [hHighscoreNamePtrHi], a
 	ld a, e
-	ld [hHighscoreNamePointerLo], a
+	ld [hHighscoreNamePtrLo], a
 	ret
 
 .pressed_b:

@@ -1,12 +1,11 @@
-INCBIN "baserom.gb", $4000, $41A7 - $4000
-
+; LoadTileset assumes that GFX_Common follows GFX_Font
 GFX_Font::
 INCBIN "gfx/font.1bpp"
 GFX_Font_End::
 
 GFX_Common::
 INCBIN "gfx/common.2bpp"
-GFX_Common_End:
+GFX_Common_End::
 
 INCBIN "baserom.gb", $437F, $4A4F - $437F
 
@@ -5840,9 +5839,9 @@ jr_001_7e39:
 	ld d, d
 	and d
 	ld d, h
-	ld bc, $0000
+	db 1
 
-	rept 46
+	rept 48
 	nop
 	endr
 
