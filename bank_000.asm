@@ -6188,7 +6188,7 @@ LoadTileset::
 
 LoadFont::
 	ld hl, GFX_Font
-	length bc, GFX_Font
+	ld bc, GFX_Font_End - GFX_Font
 	ld de, vBGTiles tile $00
 .loop:
 	ld a, [hl+] ; while unintuitive, swapping de with hl could save space and execution time

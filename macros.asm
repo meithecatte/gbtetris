@@ -12,10 +12,6 @@ assert: MACRO
 	endc
 ENDM
 
-length: MACRO
-	ld \1, \2_End - \2
-ENDM
-
 tile EQUS "+ 16 *"
 sprite EQUS "+ SPRITE_SIZE *"
 tiles EQUS "* 16"
