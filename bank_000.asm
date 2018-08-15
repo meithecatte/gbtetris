@@ -6836,9 +6836,19 @@ jr_000_2abf:
 INCLUDE "sprites.asm"
 
 GFX_Common2::
-INCBIN "gfx/common2.2bpp"
-GFX_Common2_End::
+INCBIN "gfx/common2.trunc.2bpp"
 
-	INCBIN "baserom.gb", $3f87, $4000 - $3f87
-INCBIN "baserom.gb", $4000, $41A7 - $4000
+TypeAPlayfieldTilemap::
+INCBIN "gfx/playfield_a.bin"
 
+TypeBPlayfieldTilemap::
+INCBIN "gfx/playfield_b.bin"
+
+; LoadTileset assumes that GFX_Common follows GFX_Font
+GFX_Font::
+INCBIN "gfx/font.1bpp"
+GFX_Font_End::
+
+GFX_Common::
+INCBIN "gfx/common.2bpp"
+GFX_Common_End::

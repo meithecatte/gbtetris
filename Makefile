@@ -32,6 +32,11 @@ tetris11.gb: main11.o
 	rgblink -n tetris11.sym -m tetris11.map -tdp 255 -o $@ $<
 	rgbfix -v -t TETRIS -n 1 -l 1 $@
 	sort -o tetris11.sym tetris11.sym
+
+gfx/common2.trunc.2bpp: gfx/common2.2bpp
+	cp $< $@
+	truncate -s 3152 $@
+
 clean:
 	rm -f main10.o tetris10.gb tetris10.sym tetris10.map main11.o tetris11.gb tetris11.sym tetris11.map
 	find . \( -iname '*.1bpp' -o -iname '*.2bpp' \) -exec rm {} +

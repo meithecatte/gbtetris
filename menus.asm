@@ -228,7 +228,7 @@ HandleModeSelect::
 
 LoadTypeAMenu::
 	call DisableLCD
-	ld de, TypeATilemap
+	ld de, TypeAMenuTilemap
 	call LoadTilemapA
 	call FillHighscoreTilemapWithDots
 	call ClearOAM
@@ -332,7 +332,7 @@ TypeAMenuCursorPositions::
 
 LoadTypeBMenu::
 	call DisableLCD
-	ld de, TypeBTilemap
+	ld de, TypeBMenuTilemap
 	call LoadTilemapA
 	call ClearOAM
 	ld hl, wSpriteList

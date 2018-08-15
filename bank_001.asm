@@ -1,12 +1,3 @@
-; LoadTileset assumes that GFX_Common follows GFX_Font
-GFX_Font::
-INCBIN "gfx/font.1bpp"
-GFX_Font_End::
-
-GFX_Common::
-INCBIN "gfx/common.2bpp"
-GFX_Common_End::
-
 INCBIN "baserom.gb", $437F, $4A4F - $437F
 
 CopyrightTilemap::
@@ -35,10 +26,10 @@ INCBIN "gfx/titlescreen_tilemap.bin"
 ModeSelectTilemap::
 INCBIN "gfx/mode_select_tilemap.bin"
 
-TypeATilemap::
+TypeAMenuTilemap::
 INCBIN "gfx/type_a_menu_tilemap.bin"
 
-TypeBTilemap::
+TypeBMenuTilemap::
 INCBIN "gfx/type_b_menu_tilemap.bin"
 
 INCBIN "baserom.gb", $5157, $525c - $5157
