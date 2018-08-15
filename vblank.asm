@@ -45,7 +45,7 @@ VBlankInterrupt::
 	and a
 	jr z, .unk027a
 
-	ld a, [$ff00+$98]
+	ld a, [hLockdownStage]
 	cp $03
 	jr nz, .unk027a
 

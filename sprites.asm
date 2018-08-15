@@ -198,9 +198,15 @@ UpdateSprites::
 	jp .object_loop
 
 SpriteDescriptorPointers::
-	dw SpriteL0
-	dw SpriteL1
-INCBIN "baserom.gb", $2bb0, $2c68 - $2bb0
+	dw SpriteL0, SpriteL1, SpriteL2, SpriteL3
+	dw SpriteJ0, SpriteJ1, SpriteJ2, SpriteJ3
+	dw SpriteI0, SpriteI1, SpriteI2, SpriteI3 ; you could just do 0, 1, 0, 1
+	dw SpriteO0, SpriteO1, SpriteO2, SpriteO3 ; JUST REFER TO THE SAME SPRITE FOUR TIMES ALREADY
+	dw SpriteZ0, SpriteZ1, SpriteZ2, SpriteZ3
+	dw SpriteS0, SpriteS1, SpriteS2, SpriteS3
+	dw SpriteT0, SpriteT1, SpriteT2, SpriteT3
+
+INCBIN "baserom.gb", $2be4, $2c68 - $2be4
 
 SpriteL0::
 	dw SpriteL0Objects
@@ -210,7 +216,111 @@ SpriteL1::
 	dw SpriteL1Objects
 	db -17, -16
 
-INCBIN "baserom.gb", $2c70, $2da0 - $2c70
+SpriteL2::
+	dw SpriteL2Objects
+	db -17, -16
+
+SpriteL3::
+	dw SpriteL3Objects
+	db -17, -16
+
+SpriteJ0::
+	dw SpriteJ0Objects
+	db -17, -16
+
+SpriteJ1::
+	dw SpriteJ1Objects
+	db -17, -16
+
+SpriteJ2::
+	dw SpriteJ2Objects
+	db -17, -16
+
+SpriteJ3::
+	dw SpriteJ3Objects
+	db -17, -16
+
+SpriteI0::
+	dw SpriteI0Objects
+	db -17, -16
+
+SpriteI1::
+	dw SpriteI1Objects
+	db -17, -16
+
+SpriteI2::
+	dw SpriteI2Objects
+	db -17, -16
+
+SpriteI3::
+	dw SpriteI3Objects
+	db -17, -16
+
+SpriteO0::
+	dw SpriteO0Objects
+	db -17, -16
+
+SpriteO1::
+	dw SpriteO1Objects
+	db -17, -16
+
+SpriteO2::
+	dw SpriteO2Objects
+	db -17, -16
+
+SpriteO3::
+	dw SpriteO3Objects
+	db -17, -16
+
+SpriteZ0::
+	dw SpriteZ0Objects
+	db -17, -16
+
+SpriteZ1::
+	dw SpriteZ1Objects
+	db -17, -16
+
+SpriteZ2::
+	dw SpriteZ2Objects
+	db -17, -16
+
+SpriteZ3::
+	dw SpriteZ3Objects
+	db -17, -16
+
+SpriteS0::
+	dw SpriteS0Objects
+	db -17, -16
+
+SpriteS1::
+	dw SpriteS1Objects
+	db -17, -16
+
+SpriteS2::
+	dw SpriteS2Objects
+	db -17, -16
+
+SpriteS3::
+	dw SpriteS3Objects
+	db -17, -16
+
+SpriteT0::
+	dw SpriteT2Objects ; shift the cycle to start pointing down
+	db -17, -16
+
+SpriteT1::
+	dw SpriteT3Objects
+	db -17, -16
+
+SpriteT2::
+	dw SpriteT0Objects
+	db -17, -16
+
+SpriteT3::
+	dw SpriteT1Objects
+	db -17, -16
+
+INCBIN "baserom.gb", $2cd8, $2da0 - $2cd8
 
 ; make it readable
 _ EQU $fe
@@ -228,9 +338,205 @@ SpriteL1Objects::
 	db _,   $84, _,   _
 	db _,   $84, $84, $ff
 
-INCBIN "baserom.gb", $2dc2, $31f1 - $2dc2
+SpriteL2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   $84, _
+	db $84, $84, $84, _
+	db $ff ; couldn't you have stopped this sooner?
+
+SpriteL3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db $84, $84, _,   _
+	db _,   $84, _,   _
+	db _,   $84, $ff
+
+SpriteJ0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $81, $81, $81, _
+	db _,   _,   $81, $ff
+
+SpriteJ1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $81, $81, _
+	db _,   $81, _,   _
+	db _,   $81, $ff
+
+SpriteJ2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db $81, _,   _,   _
+	db $81, $81, $81, $ff
+
+SpriteJ3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $81, _,   _
+	db _,   $81, _,   _
+	db $81, $81, $ff
+
+SpriteI0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $8a, $8b, $8b, $8f
+	db $ff
+
+SpriteI1Objects::
+	dw SpriteDim4x4
+	db _,   $80, _,   _
+	db _,   $88, _,   _
+	db _,   $88, _,   _
+	db _,   $89, $ff
+
+SpriteI2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $8a, $8b, $8b, $8f
+	db $ff
+
+SpriteI3Objects::
+	dw SpriteDim4x4
+	db _,   $80, _,   _
+	db _,   $88, _,   _
+	db _,   $88, _,   _
+	db _,   $89, $ff
+
+SpriteO0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $83, $83, _
+	db _,   $83, $83, $ff
+
+SpriteO1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $83, $83, _
+	db _,   $83, $83, $ff
+
+SpriteO2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $83, $83, _
+	db _,   $83, $83, $ff
+
+SpriteO3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $83, $83, _
+	db _,   $83, $83, $ff
+
+SpriteZ0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $82, $82, _,   _
+	db _,   $82, $82, $ff
+
+SpriteZ1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $82, _,   _
+	db $82, $82, _,   _
+	db $82, $ff
+
+SpriteZ2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $82, $82, _,   _
+	db _,   $82, $82, $ff
+
+SpriteZ3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $82, _,   _
+	db $82, $82, _,   _
+	db $82, $ff
+
+SpriteS0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $86, $86, _
+	db $86, $86, $ff
+
+SpriteS1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db $86, _,   _,   _
+	db $86, $86, _,   _
+	db _,   $86, $ff
+
+SpriteS2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db _,   $86, $86, _
+	db $86, $86, $ff
+
+SpriteS3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db $86, _,   _,   _
+	db $86, $86, _,   _
+	db _,   $86, $ff
+
+SpriteT0Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $85, _,   _
+	db $85, $85, $85, $ff
+
+SpriteT1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $85, _,   _
+	db $85, $85, _,   _
+	db _,   $85, $ff
+
+SpriteT2Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   _,   _,   _
+	db $85, $85, $85, _
+	db _,   $85, $ff
+
+SpriteT3Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,  $85,  _,   _
+	db _,  $85,  $85, _
+	db _,  $85,  $ff
+
+INCBIN "baserom.gb", $2f75, $31f1 - $2f75
 
 PURGE _
 
 SpriteDim4x4::
-INCBIN "baserom.gb", $31f1, $3287 - $31f1
+	db 0,  0
+	db 0,  8
+	db 0,  16
+	db 0,  24
+	db 8,  0
+	db 8,  8
+	db 8,  16
+	db 8,  24
+	db 16, 0
+	db 16, 8
+	db 16, 16
+	db 16, 24
+	db 24, 0
+	db 24, 8
+	db 24, 16
+	db 24, 24
+INCBIN "baserom.gb", $3211, $3287 - $3211

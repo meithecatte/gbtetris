@@ -25,6 +25,10 @@ hSpriteHidden    EQU $ff95
 hSpriteListPtrHi EQU $ff96
 hSpriteListPtrLo EQU $ff97
 
+hLockdownStage  EQU $ff98
+hGravityCounter EQU $ff99
+hFallingSpeed   EQU $ff9a
+
 hCollisionOccured_NeverRead EQU $ff9b
 
 hHighscoreBlink  EQU $ff9c
@@ -82,6 +86,8 @@ hTrueInputDuringDemo        EQU $ffee
 
 hMultiplayerNewMusic EQU $fff0
 hStartAtLevel10      EQU $fff4
+
+hFailedTetrominoPlacements EQU $fffb
 
 hHighscorePtrHi EQU $fffb
 hHighscorePtrLo EQU $fffc

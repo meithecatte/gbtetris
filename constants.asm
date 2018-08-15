@@ -18,7 +18,7 @@ D_UP_BIT     EQU 6
 D_DOWN_BIT   EQU 7
 
 ; hGameState
-STATE_00                            EQU 0
+STATE_GAMEPLAY                      EQU 0
 STATE_GAME_OVER                     EQU 1
 STATE_04                            EQU 4
 STATE_05                            EQU 5
@@ -94,10 +94,35 @@ SPRITE_VISIBLE EQU $00
 
 ;  SPRITE_OFFSET_ID
 SPRITE_ID_ROTATION_MASK EQU $03
+
 SPRITE_L0      EQU $00
 SPRITE_L1      EQU $01
 SPRITE_L2      EQU $02
 SPRITE_L3      EQU $03
+SPRITE_J0      EQU $04
+SPRITE_J1      EQU $05
+SPRITE_J2      EQU $06
+SPRITE_J3      EQU $07
+SPRITE_I0      EQU $08
+SPRITE_I1      EQU $09
+SPRITE_I2      EQU $0a
+SPRITE_I3      EQU $0b
+SPRITE_O0      EQU $0c
+SPRITE_O1      EQU $0d
+SPRITE_O2      EQU $0e
+SPRITE_O3      EQU $0f
+SPRITE_Z0      EQU $10
+SPRITE_Z1      EQU $11
+SPRITE_Z2      EQU $12
+SPRITE_Z3      EQU $13
+SPRITE_S0      EQU $14
+SPRITE_S1      EQU $15
+SPRITE_S2      EQU $16
+SPRITE_S3      EQU $17
+SPRITE_T0      EQU $18
+SPRITE_T1      EQU $19
+SPRITE_T2      EQU $1a
+SPRITE_T3      EQU $1b
 SPRITE_TYPE_A  EQU $1c
 SPRITE_TYPE_B  EQU $1d
 SPRITE_TYPE_C  EQU $1e

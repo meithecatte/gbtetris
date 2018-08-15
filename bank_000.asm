@@ -53,19 +53,24 @@ SECTION "Code", ROM0[$150]
 Boot:
 	jp Init
 
-	call SpriteCoordToTilemapAddr
+; I can't think of a way this could ever be useful. Maybe something to do with the hardware being
+; a moving target in development?
+Unused_WTF::
+	call SpriteCoordToTilemapAddr ; points hl into the tilemap
 
-jr_000_0156:
+.wait_for_hblank1:
 	ld a, [rSTAT]
-	and $03
-	jr nz, jr_000_0156
+	and STATF_MODE
+	assert STATF_HB == 0
+	jr nz, .wait_for_hblank1
 
 	ld b, [hl]
 
-jr_000_015d:
+.wait_for_hblank2:
 	ld a, [rSTAT]
-	and $03
-	jr nz, jr_000_015d
+	and STATF_MODE
+	assert STATF_HB == 0
+	jr nz, .wait_for_hblank2
 
 	ld a, [hl]
 	and b
@@ -276,7 +281,7 @@ MainLoop::
 HandleGameState::
 	ld a, [hGameState]
 	jumptable
-	dw HandleState0 ; 0
+	dw HandleGameplay ; 0
 	dw HandleGameOver
 	dw HandleState2 ; 2
 	dw HandleState3 ; 3
@@ -392,10 +397,10 @@ LoadTitlescreen::
 	call DisableLCD
 	xor a
 	ld [hRecordDemo], a ; TODO
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ld [$ff00+$9c], a
 	ld [hCollisionOccured_NeverRead], a
-	ld [$ff00+$fb], a
+	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
 	ld [$ff00+$e3], a
 IF !DEF(INTERNATIONAL)
@@ -1079,10 +1084,10 @@ HandleState24::
 Jump_000_0895:
 	xor a
 	ld [$c210], a
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ld [$ff00+$9c], a
 	ld [hCollisionOccured_NeverRead], a
-	ld [$ff00+$fb], a
+	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
 	ld [hSerialDone], a
 	ld [rSB], a
@@ -1676,8 +1681,8 @@ HandleState26::
 	ld [hl], $00
 	call Call_000_1c68
 	call Call_000_1ce3
-	call HandleGameplayInput
-	call Call_000_20f7
+	call HandleGameplayMovement
+	call HandleGravity
 	call Call_000_2199
 	call Call_000_25f5
 	call Call_000_22ad
@@ -3435,10 +3440,10 @@ LoadPlayfield::
 	xor a
 	assert SPRITE_VISIBLE == 0
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ld [$ff00+$9c], a
 	ld [hCollisionOccured_NeverRead], a
-	ld [$ff00+$fb], a
+	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
 	ld a, $2f
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
@@ -3532,7 +3537,7 @@ ENDC
 	jr nz, jr_000_1b3b
 
 	ld a, $34
-	ld [$ff00+$99], a
+	ld [hGravityCounter], a
 
 	; display the "high" value on screen
 	ld a, [hTypeBHigh]
@@ -3561,7 +3566,7 @@ ENDC
 jr_000_1b3b:
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
-	assert STATE_00 == 0
+	assert STATE_GAMEPLAY == 0
 	xor a
 	ld [hGameState], a
 	ret
@@ -3589,8 +3594,8 @@ jr_000_1b55:
 	ld d, $00
 	add hl, de
 	ld a, [hl]
-	ld [$ff00+$99], a
-	ld [$ff00+$9a], a
+	ld [hGravityCounter], a
+	ld [hFallingSpeed], a
 	ret
 
 
@@ -3793,7 +3798,7 @@ jr_000_1c23:
 	jr nz, jr_000_1c1d
 	ret
 
-HandleState0::
+HandleGameplay::
 	call Call_000_1c68
 	ld a, [$ff00+$ab]
 	and a
@@ -3802,8 +3807,8 @@ HandleState0::
 	call CheckDemoEnd
 	call HandleDemoPlayback
 	call HandleDemoRecording
-	call HandleGameplayInput
-	call Call_000_20f7
+	call HandleGameplayMovement
+	call HandleGravity
 	call Call_000_2199
 	call Call_000_25f5
 	call Call_000_22ad
@@ -3996,7 +4001,7 @@ HandleGameOver::
 	call UpdateCurrentTetromino
 	call UpdateNextTetromino
 	xor a
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ld [$ff00+$9c], a
 	call Call_000_22f3
 	ld a, $87
@@ -4658,36 +4663,35 @@ jr_000_20c0:
 	ld a, e
 	ld [$c213], a
 	call UpdateNextTetromino
-	ld a, [$ff00+$9a]
-	ld [$ff00+$99], a
+	ld a, [hFallingSpeed]
+	ld [hGravityCounter], a
 	ret
 
-
-jr_000_20cc:
-	ld a, [$c0c7]
+Gameplay_HoldingDown:
+	ld a, [wFastDropCounter]
 	and a
 	jr z, jr_000_20de
 
 	ld a, [hKeysPressed]
-	and $b0
-	cp $80
-	jr nz, jr_000_20ff
+	and D_DOWN | D_LEFT | D_RIGHT
+	cp D_DOWN
+	jr nz, HandleGravity.after_joypad_check
 
 	xor a
-	ld [$c0c7], a
+	ld [wFastDropCounter], a
 
 jr_000_20de:
 	ld a, [hDelayCounter2]
 	and a
-	jr nz, jr_000_210c
+	jr nz, HandleGravity.end
 
-	ld a, [$ff00+$98]
+	ld a, [hLockdownStage]
 	and a
-	jr nz, jr_000_210c
+	jr nz, HandleGravity.end
 
 	ld a, [$ff00+$e3]
 	and a
-	jr nz, jr_000_210c
+	jr nz, HandleGravity.end
 
 	ld a, $03
 	ld [hDelayCounter2], a
@@ -4695,64 +4699,62 @@ jr_000_20de:
 	inc [hl]
 	jr jr_000_211d
 
-Call_000_20f7:
+HandleGravity:
 	ld a, [hKeysHeld]
-	and $b0
-	cp $80
-	jr z, jr_000_20cc
+	and D_DOWN | D_LEFT | D_RIGHT
+	cp D_DOWN
+	jr z, Gameplay_HoldingDown
 
-jr_000_20ff:
-	ld hl, $ffe5
+.after_joypad_check:
+	ld hl, $ffe5 ; normal xor a / ldh is shorter, faster, and less unusual
 	ld [hl], $00
-	ld a, [$ff00+$99]
+	ld a, [hGravityCounter]
 	and a
 	jr z, jr_000_2110
-
 	dec a
-	ld [$ff00+$99], a
-
-jr_000_210c:
-	call UpdateCurrentTetromino
+	ld [hGravityCounter], a
+.end:
+	call UpdateCurrentTetromino ; why no TCO?
 	ret
 
-
 jr_000_2110:
-	ld a, [$ff00+$98]
-	cp $03
+	ld a, [hLockdownStage]
+	cp 3
 	ret z
 
 	ld a, [$ff00+$e3]
 	and a
 	ret nz
 
-	ld a, [$ff00+$9a]
-	ld [$ff00+$99], a
+	ld a, [hFallingSpeed]
+	ld [hGravityCounter], a
 
 jr_000_211d:
-	ld hl, $c201
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_Y
 	ld a, [hl]
 	ld [hBuffer], a
-	add $08
+	add 8
 	ld [hl], a
 	call UpdateCurrentTetromino
 	call CheckCollision
 	and a
 	ret z
 
+	; lock the tetromino in place
 	ld a, [hBuffer]
-	ld hl, $c201
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_Y
 	ld [hl], a
 	call UpdateCurrentTetromino
-	ld a, $01
-	ld [$ff00+$98], a
-	ld [$c0c7], a
+	ld a, 1
+	ld [hLockdownStage], a
+	ld [wFastDropCounter], a
 	ld a, [$ff00+$e5]
 	and a
 	jr z, jr_000_215e
 
 	ld c, a
-	ld a, [$ff00+$c0]
-	cp $37
+	ld a, [hGameType]
+	cp GAME_TYPE_A
 	jr z, jr_000_2181
 
 	ld de, $c0c0
@@ -4775,28 +4777,27 @@ jr_000_215b:
 	ld [$ff00+$e5], a
 
 jr_000_215e:
-	ld a, [$c201]
+	ld a, [wSpriteList sprite 0 + SPRITE_OFFSET_Y]
 	cp $18
 	ret nz
 
-	ld a, [$c202]
+	ld a, [wSpriteList sprite 0 + SPRITE_OFFSET_X]
 	cp $3f
 	ret nz
 
-	ld hl, $fffb
+	ld hl, hFailedTetrominoPlacements
 	ld a, [hl]
-	cp $01
-	jr nz, jr_000_217f
+	cp 1
+	jr nz, .no_game_over_yet
 
-	call $7ff3
-	ld a, $01
+	call JumpResetAudio
+	ld a, STATE_GAME_OVER
 	ld [hGameState], a
 	ld a, $02
 	ld [$dff0], a
 	ret
 
-
-jr_000_217f:
+.no_game_over_yet:
 	inc [hl]
 	ret
 
@@ -4822,7 +4823,7 @@ jr_000_2189:
 	jr jr_000_215b
 
 Call_000_2199:
-	ld a, [$ff00+$98]
+	ld a, [hLockdownStage]
 	cp $02
 	ret nz
 
@@ -4866,7 +4867,7 @@ jr_000_21c6:
 	jr nz, jr_000_21ae
 
 	ld a, $03
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	dec a
 	ld [hDelayCounter], a
 	ld a, [hBuffer]
@@ -4954,7 +4955,7 @@ jr_000_223b:
 	jr jr_000_220a
 
 Call_000_2240:
-	ld a, [$ff00+$98]
+	ld a, [hLockdownStage]
 	cp $03
 	ret nz
 
@@ -5019,7 +5020,7 @@ Call_000_2240:
 
 .unk2:
 	xor a
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ret
 
 
@@ -5352,7 +5353,7 @@ Call_000_242c:
 	cp $13
 	ret nz
 
-	ld [$c0c7], a
+	ld [wFastDropCounter], a
 	ld hl, $9802
 	ld de, $c802
 	call Call_000_2506
@@ -5542,8 +5543,12 @@ jr_000_2508:
 	ld [$ff00+$e3], a
 	ret
 
-
-HandleGameplayInput::
+; If the player has pressed left or right, and the current position allows such movement, move the
+; current tetromino. Play the corresponding sound effect and handle auto fire.
+; Input: none
+; Output: none
+; Clobbers all registers
+HandleGameplayMovement::
 IF DEF(INTERNATIONAL)
 	; the sprite is not visible if a line clear is in progress
 	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY
@@ -5649,7 +5654,6 @@ ENDC
 	ld [hAutoFireCountdown], a
 	ret
 
-
 .not_holding_right:
 	bit D_LEFT_BIT, b
 	ld a, AUTOFIRE_DELAY
@@ -5680,7 +5684,7 @@ ENDC
 ; Check if the current tetromino is colliding with the pieces already on the playfield.
 ; Input: none
 ; Output: A = 1 if collision occured, A = 0 otherwise
-; Clobbers A, B, HL (incomplete)
+; Clobbers A, B, DE, HL
 CheckCollision::
 	ld hl, wOAMBuffer_CurrentPiece
 	ld b, 4
@@ -5697,11 +5701,11 @@ CheckCollision::
 	push bc
 	call SpriteCoordToTilemapAddr
 	ld a, h
-	add $30
+	add HIGH(wTileMap - vBGMapA)
 	ld h, a
 	ld a, [hl]
-	cp $2f
-	jr nz, jr_000_25ee
+	cp " "
+	jr nz, .found_collision
 
 	pop bc
 	pop hl
@@ -5715,7 +5719,7 @@ CheckCollision::
 	ld [hCollisionOccured_NeverRead], a
 	ret
 
-jr_000_25ee:
+.found_collision:
 	pop bc
 	pop hl
 	ld a, 1
@@ -5723,8 +5727,8 @@ jr_000_25ee:
 	ret
 
 Call_000_25f5:
-	ld a, [$ff00+$98]
-	cp $01
+	ld a, [hLockdownStage]
+	cp 1
 	ret nz
 
 	ld hl, wOAMBuffer_CurrentPiece
@@ -5764,7 +5768,7 @@ jr_000_2611:
 
 jr_000_2623:
 	ld a, $02
-	ld [$ff00+$98], a
+	ld [hLockdownStage], a
 	ld hl, $c200
 	ld [hl], $80
 	ret
@@ -6685,6 +6689,10 @@ ENDC
 	ld [rJOYP], a
 	ret
 
+; convert a grid-aligned sprite coordinate pair into a tilemap address of the corresponding tile
+; Input: hCoordConversionX, hCoordConversionY
+; Output in HL as well as hCoordConversionHi and hCoordConversionLo
+; Clobbers A, B, DE
 SpriteCoordToTilemapAddr::
 	ld a, [hCoordConversionY]
 	sub 16
@@ -6740,11 +6748,11 @@ Unused_TilemapAddrToSpriteCoord::
 	jr nz, .shift_loop
 
 	ld a, e
-	sub $84
+	sub $84 ; this feels wrong - in fact, a wrong value here makes it break
 	and $fe
 	rlca ; or add a, without the carry nastiness
 	rlca
-	add $08
+	add 8
 	ld [hCoordConversionY], a
 
 	ld a, [hCoordConversionLo]
@@ -6755,7 +6763,6 @@ Unused_TilemapAddrToSpriteCoord::
 	add 8
 	ld [hCoordConversionX], a
 	ret
-
 
 Call_000_2a7e:
 	ld a, [$ff00+$e0]
