@@ -25,15 +25,25 @@ hSpriteHidden    EQU $ff95
 hSpriteListPtrHi EQU $ff96
 hSpriteListPtrLo EQU $ff97
 
+hCollisionOccured_NeverRead EQU $ff9b
+
 hHighscoreBlink  EQU $ff9c
 
+hBuffer         EQU $ffa0
 hSavedIE        EQU $ffa1
 hDelayCounter   EQU $ffa6
 hDelayCounter2  EQU $ffa7
 
 hLevel EQU $ffa9
 
-hMenuAutoFireCountdown EQU $ffaa
+hAutoFireCountdown EQU $ffaa
+
+hDemoLengthCounter EQU $ffb0
+
+hCoordConversionY  EQU $ffb2
+hCoordConversionX  EQU $ffb3
+hCoordConversionLo EQU $ffb4
+hCoordConversionHi EQU $ffb5
 
 hOAMDMA EQU $ffb6 ; ends $ffbf, 10 bytes long
 
@@ -62,6 +72,13 @@ hGameState     EQU $ffe1
 hDemoNumber    EQU $ffe4
 
 hEnableHighscoreVBlank EQU $ffe8
+
+hRecordDemo                 EQU $ffe9
+hCountdownTillNextDemoInput EQU $ffea
+hDemoPtrHi                  EQU $ffeb
+hDemoPtrLo                  EQU $ffec
+hLastDemoInput              EQU $ffed
+hTrueInputDuringDemo        EQU $ffee
 
 hMultiplayerNewMusic EQU $fff0
 hStartAtLevel10      EQU $fff4

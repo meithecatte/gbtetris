@@ -415,7 +415,7 @@ HandleHighscoreEnterName::
 	ld b, a
 	ld a, [hKeysHeld]
 	ld c, a
-	ld a, 23 ; initial autofire countdown
+	ld a, AUTOFIRE_DELAY
 	bit D_UP_BIT, b
 	jr nz, .pressed_up
 
@@ -455,14 +455,14 @@ HandleHighscoreEnterName::
 	ret
 
 .holding_up:
-	ld a, [hMenuAutoFireCountdown]
+	ld a, [hAutoFireCountdown]
 	dec a
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ret nz
 
-	ld a, 9
+	ld a, AUTOFIRE_RATE
 .pressed_up:
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ld b, "x"
 
 	; only allow to enter a heart if down+start was used at the title screen to increase the difficulty
@@ -493,14 +493,14 @@ HandleHighscoreEnterName::
 	jr .write_letter_back
 
 .holding_down:
-	ld a, [hMenuAutoFireCountdown]
+	ld a, [hAutoFireCountdown]
 	dec a
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ret nz
 
-	ld a, 9
+	ld a, AUTOFIRE_RATE
 .pressed_down:
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ld b, "x"
 
 	; only allow to enter a heart if down+start was used at the title screen to increase the difficulty

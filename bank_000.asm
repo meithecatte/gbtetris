@@ -53,8 +53,7 @@ SECTION "Code", ROM0[$150]
 Boot:
 	jp Init
 
-
-	call Call_000_2a2b
+	call SpriteCoordToTilemapAddr
 
 jr_000_0156:
 	ld a, [rSTAT]
@@ -72,8 +71,12 @@ jr_000_015d:
 	and b
 	ret
 
-
-Call_000_0166:
+; Add two BCD numbers together stored in memory BCD first.
+; HL = pointer to destination, first operand. 3 bytes
+; DE = second operand, directly as a register
+; On overflow, the result is 999999
+; TODO: a quick CODE XREF check suggests that this is used for more than score updates
+AddBCD::
 	ld a, e
 	add [hl]
 	daa
@@ -82,11 +85,11 @@ Call_000_0166:
 	adc [hl]
 	daa
 	ld [hl+], a
-	ld a, $00
+	ld a, $00 ; can't xor a - need to preserve flags
 	adc [hl]
 	daa
 	ld [hl], a
-	ld a, $01
+	ld a, 1
 	ld [$ff00+$e0], a
 	ret nc
 
@@ -274,7 +277,7 @@ HandleGameState::
 	ld a, [hGameState]
 	jumptable
 	dw HandleState0 ; 0
-	dw HandleState1 ; 1
+	dw HandleGameOver
 	dw HandleState2 ; 2
 	dw HandleState3 ; 3
 	dw HandleState4 ; 4
@@ -388,10 +391,10 @@ ENDC
 LoadTitlescreen::
 	call DisableLCD
 	xor a
-	ld [$ff00+$e9], a ; TODO
+	ld [hRecordDemo], a ; TODO
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
-	ld [$ff00+$9b], a
+	ld [hCollisionOccured_NeverRead], a
 	ld [$ff00+$fb], a
 	ld [$ff00+$9f], a
 	ld [$ff00+$e3], a
@@ -454,37 +457,37 @@ ENDC
 	ret
 
 StartDemo::
-	ld a, $37 ; TODO
-	ld [$ff00+$c0], a
-	ld a, $09
-	ld [$ff00+$c2], a
+	ld a, GAME_TYPE_A ; TODO
+	ld [hGameType], a
+	ld a, 9
+	ld [hTypeALevel], a
 	xor a
 	ld [hMultiplayer], a
-	ld [$ff00+$b0], a
-	ld [$ff00+$ed], a
-	ld [$ff00+$ea], a
+	ld [hDemoLengthCounter], a
+	ld [hLastDemoInput], a
+	ld [hCountdownTillNextDemoInput], a
 	ld a, $63
-	ld [$ff00+$eb], a
+	ld [hDemoPtrHi], a
 	ld a, $30
-	ld [$ff00+$ec], a
+	ld [hDemoPtrLo], a
 	ld a, [hDemoNumber]
-	cp 2
-	ld a, 2
+	cp DEMO_TYPE_A
+	ld a, DEMO_TYPE_A
 	jr nz, .got_params
 
-	ld a, $77
-	ld [$ff00+$c0], a
-	ld a, $09
-	ld [$ff00+$c3], a
-	ld a, $02
-	ld [$ff00+$c4], a
+	ld a, GAME_TYPE_B
+	ld [hGameType], a
+	ld a, 9
+	ld [hTypeBLevel], a
+	ld a, 2
+	ld [hTypeBHigh], a
 	ld a, $64
-	ld [$ff00+$eb], a
+	ld [hDemoPtrHi], a
 	ld a, $30
-	ld [$ff00+$ec], a
-	ld a, $11
-	ld [$ff00+$b0], a
-	ld a, 1
+	ld [hDemoPtrLo], a ; this is set to the same value above...
+	ld a, 17
+	ld [hDemoLengthCounter], a
+	ld a, DEMO_TYPE_B
 
 .got_params:
 	ld [hDemoNumber], a
@@ -499,9 +502,9 @@ StartDemo::
 	ld [rLCDC], a
 	ret
 
-
-	ld a, $ff
-	ld [$ff00+$e9], a
+Unused_StartDemoRecording::
+	ld a, DEMO_RECORD
+	ld [hRecordDemo], a
 	ret
 
 HandleTitlescreen::
@@ -598,10 +601,8 @@ HandleTitlescreen::
 .no_down_press:
 	pop af
 	jr .done
-
 .switch:
 	xor $01
-
 .move_cursor:
 	ld [hMultiplayer], a
 	and a
@@ -612,11 +613,9 @@ HandleTitlescreen::
 	ld [wOAMBuffer + 1], a
 	ret
 
-
 .pressed_right:
 	and a ; just set a to 1 and jump to move_cursor!
 	ret nz
-
 	xor a ; redundant
 	jr .switch
 
@@ -628,158 +627,7 @@ HandleTitlescreen::
 	xor a
 	jr .move_cursor
 
-Call_000_0579:
-	ld a, [hDemoNumber]
-	and a
-	ret z
-
-	call DelayLoop
-	xor a
-	ld [rSB], a
-	ld a, $80
-	ld [rSC], a
-	ld a, [hKeysPressed]
-	bit 3, a
-	jr z, jr_000_059a
-
-	ld a, $33
-	ld [rSB], a
-	ld a, $81
-	ld [rSC], a
-	ld a, $06
-	ld [hGameState], a
-	ret
-
-
-jr_000_059a:
-	ld hl, $ffb0
-	ld a, [hDemoNumber]
-	cp $02
-	ld b, $10
-	jr z, jr_000_05a7
-
-	ld b, $1d
-
-jr_000_05a7:
-	ld a, [hl]
-	cp b
-	ret nz
-
-	ld a, $06
-	ld [hGameState], a
-	ret
-
-
-Call_000_05af:
-	ld a, [hDemoNumber]
-	and a
-	ret z
-
-	ld a, [$ff00+$e9]
-	cp $ff
-	ret z
-
-	ld a, [$ff00+$ea]
-	and a
-	jr z, jr_000_05c2
-
-	dec a
-	ld [$ff00+$ea], a
-	jr jr_000_05de
-
-jr_000_05c2:
-	ld a, [$ff00+$eb]
-	ld h, a
-	ld a, [$ff00+$ec]
-	ld l, a
-	ld a, [hl+]
-	ld b, a
-	ld a, [$ff00+$ed]
-	xor b
-	and b
-	ld [hKeysPressed], a
-	ld a, b
-	ld [$ff00+$ed], a
-	ld a, [hl+]
-	ld [$ff00+$ea], a
-	ld a, h
-	ld [$ff00+$eb], a
-	ld a, l
-	ld [$ff00+$ec], a
-	jr jr_000_05e1
-
-jr_000_05de:
-	xor a
-	ld [hKeysPressed], a
-
-jr_000_05e1:
-	ld a, [hKeysHeld]
-	ld [$ff00+$ee], a
-	ld a, [$ff00+$ed]
-	ld [hKeysHeld], a
-	ret
-
-
-	xor a
-	ld [$ff00+$ed], a
-	jr jr_000_05de
-
-	ret
-
-
-Call_000_05f0:
-	ld a, [hDemoNumber]
-	and a
-	ret z
-
-	ld a, [$ff00+$e9]
-	cp $ff
-	ret nz
-
-	ld a, [hKeysHeld]
-	ld b, a
-	ld a, [$ff00+$ed]
-	cp b
-	jr z, jr_000_061a
-
-	ld a, [$ff00+$eb]
-	ld h, a
-	ld a, [$ff00+$ec]
-	ld l, a
-	ld a, [$ff00+$ed]
-	ld [hl+], a
-	ld a, [$ff00+$ea]
-	ld [hl+], a
-	ld a, h
-	ld [$ff00+$eb], a
-	ld a, l
-	ld [$ff00+$ec], a
-	ld a, b
-	ld [$ff00+$ed], a
-	xor a
-	ld [$ff00+$ea], a
-	ret
-
-
-jr_000_061a:
-	ld a, [$ff00+$ea]
-	inc a
-	ld [$ff00+$ea], a
-	ret
-
-
-Call_000_0620:
-	ld a, [hDemoNumber]
-	and a
-	ret z
-
-	ld a, [$ff00+$e9]
-	and a
-	ret nz
-
-	ld a, [$ff00+$ee]
-	ld [hKeysHeld], a
-	ret
+INCLUDE "demo.asm"
 
 LoadMultiplayerMusicSelect_Slave::
 	ld hl, rSC
@@ -1092,7 +940,7 @@ Jump_000_07da:
 	ret nz
 
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, $06
 	ld de, $ffe0
 	ld hl, $c9a2
@@ -1108,7 +956,7 @@ jr_000_07fb:
 	jp nz, Jump_000_0895
 
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, $06
 	ld de, $ffe0
 	ld hl, $c9a2
@@ -1233,7 +1081,7 @@ Jump_000_0895:
 	ld [$c210], a
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
-	ld [$ff00+$9b], a
+	ld [hCollisionOccured_NeverRead], a
 	ld [$ff00+$fb], a
 	ld [$ff00+$9f], a
 	ld [hSerialDone], a
@@ -1282,7 +1130,7 @@ jr_000_08cd:
 	ld [hl], $03
 	call Call_000_1b43
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, [hMasterSlave]
 	cp $29
 	ld de, $0943
@@ -1549,7 +1397,7 @@ jr_000_0a53:
 	ld a, h
 	ld [$ff00+$af], a
 	ld a, l
-	ld [$ff00+$b0], a
+	ld [hDemoLengthCounter], a
 	ret
 
 
@@ -1764,8 +1612,8 @@ IF DEF(INTERNATIONAL)
 	ld [$c210], a
 .skip
 ENDC
-	call UpdateFirstSprite
-	call UpdateSecondSprite
+	call UpdateCurrentTetromino
+	call UpdateNextTetromino
 	call PlaySelectedMusic
 	xor a
 	ld [$ff00+$d6], a
@@ -1828,7 +1676,7 @@ HandleState26::
 	ld [hl], $00
 	call Call_000_1c68
 	call Call_000_1ce3
-	call Call_000_2515
+	call HandleGameplayInput
 	call Call_000_20f7
 	call Call_000_2199
 	call Call_000_25f5
@@ -2739,7 +2587,7 @@ jr_000_1044:
 	ld a, $8f
 
 jr_000_104f:
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld hl, $99e7
 	call Call_000_10ce
 	ld a, [$ff00+$d9]
@@ -2747,7 +2595,7 @@ jr_000_104f:
 	jr z, jr_000_1073
 
 	ld a, $ac
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld hl, $99f0
 	ld c, $01
 	call Call_000_10ce
@@ -2787,7 +2635,7 @@ jr_000_1092:
 	ld a, $93
 
 jr_000_109d:
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld hl, $9827
 	call Call_000_10ce
 	ld a, [$ff00+$da]
@@ -2795,7 +2643,7 @@ jr_000_109d:
 	jr z, jr_000_10b6
 
 	ld a, $ac
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld hl, $9830
 	ld c, $01
 	call Call_000_10ce
@@ -2819,7 +2667,7 @@ jr_000_10c6:
 
 Call_000_10ce:
 jr_000_10ce:
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	push hl
 	ld de, $0020
 	ld b, $02
@@ -3141,7 +2989,7 @@ jr_000_1269:
 	ld a, $ff
 	ld [hDelayCounter], a
 	ld a, $2f
-	call Call_000_2032
+	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ret
 
 HandleState41::
@@ -3378,7 +3226,7 @@ jr_000_13d4:
 	ld a, $80
 	ld [hDelayCounter], a
 	ld a, $2f
-	call Call_000_2032
+	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ret
 
 HandleState49::
@@ -3589,11 +3437,11 @@ LoadPlayfield::
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
-	ld [$ff00+$9b], a
+	ld [hCollisionOccured_NeverRead], a
 	ld [$ff00+$fb], a
 	ld [$ff00+$9f], a
 	ld a, $2f
-	call Call_000_2032
+	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	call Call_000_204d
 	call ResetGameplayVariablesMaybe
 	xor a
@@ -3676,9 +3524,9 @@ IF DEF(INTERNATIONAL)
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 .skip
 ENDC
-	call UpdateFirstSprite
+	call UpdateCurrentTetromino
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, [hGameType]
 	cp GAME_TYPE_B
 	jr nz, jr_000_1b3b
@@ -3884,7 +3732,7 @@ jr_000_1bda:
 	jr jr_000_1be8
 
 jr_000_1be6:
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 
 jr_000_1be8:
 	push af
@@ -3893,7 +3741,7 @@ jr_000_1be8:
 	cp $0b
 	jr nz, jr_000_1bfb
 
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	cp $2f
 	jr z, jr_000_1bfb
 
@@ -3928,7 +3776,7 @@ Call_000_1c0c:
 	jr nz, jr_000_1bca
 
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, h
 	and $0f
 	cp $0a
@@ -3951,16 +3799,16 @@ HandleState0::
 	and a
 	ret nz
 
-	call Call_000_0579
-	call Call_000_05af
-	call Call_000_05f0
-	call Call_000_2515
+	call CheckDemoEnd
+	call HandleDemoPlayback
+	call HandleDemoRecording
+	call HandleGameplayInput
 	call Call_000_20f7
 	call Call_000_2199
 	call Call_000_25f5
 	call Call_000_22ad
 	call Call_000_1fec
-	call Call_000_0620
+	call RestoreInputsAfterDemoFrame
 	ret
 
 jr_000_1c4f:
@@ -3976,7 +3824,7 @@ jr_000_1c4f:
 
 jr_000_1c5e:
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
-	call UpdateSecondSprite
+	call UpdateNextTetromino
 	ret
 
 jr_000_1c65:
@@ -4033,8 +3881,8 @@ Call_000_1c68:
 
 .unk1cab:
 	ld [wSpriteList sprite 0], a
-	call UpdateFirstSprite
-	call UpdateSecondSprite
+	call UpdateCurrentTetromino
+	call UpdateNextTetromino
 	ret
 
 .unk1cb5:
@@ -4140,18 +3988,19 @@ jr_000_1d2e:
 	ld a, [bc]
 	ld e, $1c
 	db $0e
-HandleState1::
-	ld a, $80
-	ld [$c200], a
-	ld [$c210], a
-	call UpdateFirstSprite
-	call UpdateSecondSprite
+
+HandleGameOver::
+	ld a, SPRITE_HIDDEN
+	ld [wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
+	call UpdateCurrentTetromino
+	call UpdateNextTetromino
 	xor a
 	ld [$ff00+$98], a
 	ld [$ff00+$9c], a
 	call Call_000_22f3
 	ld a, $87
-	call Call_000_2032
+	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ld a, $46
 	ld [hDelayCounter], a
 	ld a, $0d
@@ -4224,8 +4073,8 @@ jr_000_1dc1:
 	ld a, $80
 	ld [$c200], a
 	ld [$c210], a
-	call UpdateFirstSprite
-	call UpdateSecondSprite
+	call UpdateCurrentTetromino
+	call UpdateNextTetromino
 	call $7ff3
 	ld a, $25
 	ld [$ff00+$9e], a
@@ -4250,8 +4099,8 @@ jr_000_1de6:
 	inc b
 
 jr_000_1dee:
-	ld hl, $c0a0
-	call Call_000_0166
+	ld hl, wScore
+	call AddBCD
 	dec b
 	jr nz, jr_000_1dee
 
@@ -4474,15 +4323,15 @@ jr_000_1ef0:
 	ld de, $0001
 	ld hl, $c0c2
 	push de
-	call Call_000_0166
+	call AddBCD
 	ld de, $c0c4
 	ld hl, $99a5
 	call Call_000_2a7e
 	xor a
 	ld [hDelayCounter], a
 	pop de
-	ld hl, $c0a0
-	call Call_000_0166
+	ld hl, wScore
+	call AddBCD
 	ld de, $c0a2
 	ld hl, $9a25
 	call Call_000_2a82
@@ -4553,8 +4402,8 @@ HandleState13::
 	jr jr_000_1fc9
 
 jr_000_1f92:
-	ld a, $2f
-	call Call_000_2032
+	ld a, " "
+	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ld hl, $c843
 	ld de, $2992
 	ld c, 7
@@ -4667,8 +4516,8 @@ jr_000_201e:
 jr_000_2024:
 	push bc
 	push de
-	ld hl, $c0a0
-	call Call_000_0166
+	ld hl, wScore
+	call AddBCD
 	pop de
 	pop bc
 	dec b
@@ -4676,7 +4525,7 @@ jr_000_2024:
 
 	ret
 
-Call_000_2032:
+FillPlayfieldWithTileAndDoSomethingElseImNotSure::
 	push af
 	ld a, $02
 	ld [$ff00+$e3], a
@@ -4744,7 +4593,7 @@ Call_000_2062:
 
 jr_000_207f:
 	ld h, $c3
-	ld a, [$ff00+$b0]
+	ld a, [hDemoLengthCounter]
 	ld l, a
 	ld e, [hl]
 	inc hl
@@ -4756,7 +4605,7 @@ jr_000_207f:
 
 jr_000_208e:
 	ld a, l
-	ld [$ff00+$b0], a
+	ld [hDemoLengthCounter], a
 	ld a, [$ff00+$d3]
 	and a
 	jr z, jr_000_20c0
@@ -4808,7 +4657,7 @@ jr_000_20bd:
 jr_000_20c0:
 	ld a, e
 	ld [$c213], a
-	call UpdateSecondSprite
+	call UpdateNextTetromino
 	ld a, [$ff00+$9a]
 	ld [$ff00+$99], a
 	ret
@@ -4863,7 +4712,7 @@ jr_000_20ff:
 	ld [$ff00+$99], a
 
 jr_000_210c:
-	call UpdateFirstSprite
+	call UpdateCurrentTetromino
 	ret
 
 
@@ -4882,18 +4731,18 @@ jr_000_2110:
 jr_000_211d:
 	ld hl, $c201
 	ld a, [hl]
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	add $08
 	ld [hl], a
-	call UpdateFirstSprite
-	call Call_000_25c7
+	call UpdateCurrentTetromino
+	call CheckCollision
 	and a
 	ret z
 
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	ld hl, $c201
 	ld [hl], a
-	call UpdateFirstSprite
+	call UpdateCurrentTetromino
 	ld a, $01
 	ld [$ff00+$98], a
 	ld [$c0c7], a
@@ -4966,8 +4815,8 @@ jr_000_2182:
 jr_000_2189:
 	ld e, a
 	ld d, $00
-	ld hl, $c0a0
-	call Call_000_0166
+	ld hl, wScore
+	call AddBCD
 	ld a, $01
 	ld [$c0ce], a
 	jr jr_000_215b
@@ -4980,7 +4829,7 @@ Call_000_2199:
 	ld a, $02
 	ld [$dff8], a
 	xor a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld de, $c0a3
 	ld hl, $c842
 	ld b, $10
@@ -5004,9 +4853,9 @@ jr_000_21b1:
 	ld a, l
 	ld [de], a
 	inc de
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	inc a
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 
 jr_000_21c6:
 	push de
@@ -5020,7 +4869,7 @@ jr_000_21c6:
 	ld [$ff00+$98], a
 	dec a
 	ld [hDelayCounter], a
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	and a
 	ret z
 
@@ -5694,160 +5543,159 @@ jr_000_2508:
 	ret
 
 
-Call_000_2515:
+HandleGameplayInput::
 IF DEF(INTERNATIONAL)
-	ld hl, $c200
+	; the sprite is not visible if a line clear is in progress
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY
 	ld a, [hl]
-	cp $80
+	cp SPRITE_HIDDEN
 	ret z
-	ld l, $03
+	ld l, SPRITE_OFFSET_ID
 ELSE
-	ld hl, $c203
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_ID
 ENDC
 	ld a, [hl]
-	ld [$ff00+$a0], a
+	ld [hBuffer], a
 	ld a, [hKeysPressed]
 	ld b, a
-	bit 1, b
-	jr nz, jr_000_2534
-
-	bit 0, b
-	jr z, jr_000_255d
+	bit B_BUTTON_BIT, b
+	jr nz, .rotate_left
+	bit A_BUTTON_BIT, b
+	jr z, .finished_rotation
 
 	ld a, [hl]
-	and $03
-	jr z, jr_000_252e
-
+	and SPRITE_ID_ROTATION_MASK
+	jr z, .wrap_right_rotation
 	dec [hl]
-	jr jr_000_2542
-
-jr_000_252e:
+	jr .did_rotation
+.wrap_right_rotation:
 	ld a, [hl]
-	or $03
+	or SPRITE_ID_ROTATION_MASK
 	ld [hl], a
-	jr jr_000_2542
+	jr .did_rotation
 
-jr_000_2534:
+.rotate_left:
 	ld a, [hl]
-	and $03
-	cp $03
-	jr z, jr_000_253e
+	and SPRITE_ID_ROTATION_MASK
+	cp 3
+	jr z, .wrap_left_rotation
 
 	inc [hl]
-	jr jr_000_2542
+	jr .did_rotation
 
-jr_000_253e:
+.wrap_left_rotation:
 	ld a, [hl]
 	and $fc
 	ld [hl], a
 
-jr_000_2542:
-	ld a, $03
+.did_rotation:
+	ld a, SFX_ROTATE
 	ld [wPlaySFX], a
-	call UpdateFirstSprite
-	call Call_000_25c7
+	call UpdateCurrentTetromino
+	call CheckCollision
 	and a
-	jr z, jr_000_255d
+	jr z, .finished_rotation
 
+	; cancel rotation, we've got a collision
 	xor a
 	ld [wPlaySFX], a
-	ld hl, $c203
-	ld a, [$ff00+$a0]
-	ld [hl], a
-	call UpdateFirstSprite
-
-jr_000_255d:
-	ld hl, $c202
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_ID
+	ld a, [hBuffer]
+	ld [hl], a ; you'd be better off specifying the address directly
+	call UpdateCurrentTetromino
+.finished_rotation:
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_X
 	ld a, [hKeysPressed]
 	ld b, a
 	ld a, [hKeysHeld]
 	ld c, a
 	ld a, [hl]
-	ld [$ff00+$a0], a
-	bit 4, b
-	ld a, $17
-	jr nz, jr_000_257b
+	ld [hBuffer], a
+	bit D_RIGHT_BIT, b
+	ld a, AUTOFIRE_DELAY
+	jr nz, .pressed_right
+	bit D_RIGHT_BIT, c
+	jr z, .not_holding_right
 
-	bit 4, c
-	jr z, jr_000_25a0
-
-	ld a, [hMenuAutoFireCountdown]
+	ld a, [hAutoFireCountdown]
 	dec a
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ret nz
 
-	ld a, $09
-
-jr_000_257b:
-	ld [hMenuAutoFireCountdown], a
+	ld a, AUTOFIRE_RATE
+.pressed_right:
+	ld [hAutoFireCountdown], a
 	ld a, [hl]
-	add $08
+	add 8
 	ld [hl], a
-	call UpdateFirstSprite
-	ld a, $04
+	call UpdateCurrentTetromino
+	ld a, SFX_MOVE_PIECE
 	ld [wPlaySFX], a
-	call Call_000_25c7
+	call CheckCollision
 	and a
 	ret z
 
-jr_000_258e:
-	ld hl, $c202
+.cancel_movement:
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_X
 	xor a
 	ld [wPlaySFX], a
-	ld a, [$ff00+$a0]
+	ld a, [hBuffer]
 	ld [hl], a
-	call UpdateFirstSprite
-	ld a, $01
+	call UpdateCurrentTetromino
 
-jr_000_259d:
-	ld [hMenuAutoFireCountdown], a
+	; make sure to check it next frame, since the player may want to move just before lock in
+	ld a, 1
+.end:
+	ld [hAutoFireCountdown], a
 	ret
 
 
-jr_000_25a0:
-	bit 5, b
-	ld a, $17
-	jr nz, jr_000_25b2
+.not_holding_right:
+	bit D_LEFT_BIT, b
+	ld a, AUTOFIRE_DELAY
+	jr nz, .pressed_left
 
-	bit 5, c
-	jr z, jr_000_259d
+	bit D_LEFT_BIT, c
+	jr z, .end
 
-	ld a, [hMenuAutoFireCountdown]
+	ld a, [hAutoFireCountdown]
 	dec a
-	ld [hMenuAutoFireCountdown], a
+	ld [hAutoFireCountdown], a
 	ret nz
 
-	ld a, $09
-
-jr_000_25b2:
-	ld [hMenuAutoFireCountdown], a
+	ld a, AUTOFIRE_RATE
+.pressed_left:
+	ld [hAutoFireCountdown], a
 	ld a, [hl]
-	sub $08
+	sub 8
 	ld [hl], a
-	ld a, $04
+	ld a, SFX_MOVE_PIECE
 	ld [wPlaySFX], a
-	call UpdateFirstSprite
-	call Call_000_25c7
+	call UpdateCurrentTetromino
+	call CheckCollision
 	and a
 	ret z
+	jr .cancel_movement
 
-	jr jr_000_258e
+; Check if the current tetromino is colliding with the pieces already on the playfield.
+; Input: none
+; Output: A = 1 if collision occured, A = 0 otherwise
+; Clobbers A, B, HL (incomplete)
+CheckCollision::
+	ld hl, wOAMBuffer_CurrentPiece
+	ld b, 4
 
-Call_000_25c7:
-	ld hl, $c010
-	ld b, $04
+.square_loop:
+	ld a, [hl+] ; Y
+	ld [hCoordConversionY], a
+	ld a, [hl+] ; X
+	and a ; AFAIK, this never happens
+	jr z, .out_of_bounds
 
-jr_000_25cc:
-	ld a, [hl+]
-	ld [$ff00+$b2], a
-	ld a, [hl+]
-	and a
-	jr z, jr_000_25ea
-
-	ld [$ff00+$b3], a
+	ld [hCoordConversionX], a
 	push hl
 	push bc
-	call Call_000_2a2b
+	call SpriteCoordToTilemapAddr
 	ld a, h
 	add $30
 	ld h, a
@@ -5857,44 +5705,42 @@ jr_000_25cc:
 
 	pop bc
 	pop hl
-	inc l
-	inc l
+	inc l ; this is fine since the OAM buffer is aligned to a 256-byte boundary, and must be to
+	inc l ; take advantage of the OAM DMA
 	dec b
-	jr nz, jr_000_25cc
+	jr nz, .square_loop
 
-jr_000_25ea:
+.out_of_bounds:
 	xor a
-	ld [$ff00+$9b], a
+	ld [hCollisionOccured_NeverRead], a
 	ret
-
 
 jr_000_25ee:
 	pop bc
 	pop hl
-	ld a, $01
-	ld [$ff00+$9b], a
+	ld a, 1
+	ld [hCollisionOccured_NeverRead], a
 	ret
-
 
 Call_000_25f5:
 	ld a, [$ff00+$98]
 	cp $01
 	ret nz
 
-	ld hl, $c010
+	ld hl, wOAMBuffer_CurrentPiece
 	ld b, $04
 
 jr_000_25ff:
 	ld a, [hl+]
-	ld [$ff00+$b2], a
+	ld [hCoordConversionY], a
 	ld a, [hl+]
 	and a
 	jr z, jr_000_2623
 
-	ld [$ff00+$b3], a
+	ld [hCoordConversionX], a
 	push hl
 	push bc
-	call Call_000_2a2b
+	call SpriteCoordToTilemapAddr
 	push hl
 	pop de
 	pop bc
@@ -5958,7 +5804,7 @@ jr_000_264b:
 
 jr_000_2650:
 	push hl
-	call Call_000_0166
+	call AddBCD
 	pop hl
 	dec b
 	jr nz, jr_000_2650
@@ -5979,7 +5825,7 @@ jr_000_2650:
 
 jr_000_266c:
 	push hl
-	call Call_000_0166
+	call AddBCD
 	pop hl
 	dec b
 	jr nz, jr_000_266c
@@ -6061,26 +5907,26 @@ UpdateNSprites::
 	call UpdateSprites ; why no TCO?
 	ret
 
-UpdateFirstSprite::
+UpdateCurrentTetromino::
 	ld a, 1
 	ld [hSpriteCount], a
-	ld a, 4 * 4
+	ld a, LOW(wOAMBuffer_CurrentPiece)
 	ld [hOAMBufferPtrLo], a
-	ld a, HIGH(wOAMBuffer)
+	ld a, HIGH(wOAMBuffer_CurrentPiece)
 	ld [hOAMBufferPtrHi], a
 	ld hl, wSpriteList sprite 0
-	call UpdateSprites
+	call UpdateSprites ; why no TCO?
 	ret
 
-UpdateSecondSprite::
+UpdateNextTetromino::
 	ld a, 1
 	ld [hSpriteCount], a
-	ld a, 8 * 4
+	ld a, LOW(wOAMBuffer_NextPiece)
 	ld [hOAMBufferPtrLo], a
-	ld a, HIGH(wOAMBuffer)
+	ld a, HIGH(wOAMBuffer_NextPiece)
 	ld [hOAMBufferPtrHi], a
 	ld hl, wSpriteList sprite 1
-	call UpdateSprites
+	call UpdateSprites ; why no TCO?
 	ret
 
 unk26fd::
@@ -6839,63 +6685,75 @@ ENDC
 	ld [rJOYP], a
 	ret
 
-Call_000_2a2b:
-	ld a, [$ff00+$b2]
-	sub $10
+SpriteCoordToTilemapAddr::
+	ld a, [hCoordConversionY]
+	sub 16
+	srl a ; rrca + and would be shorter
 	srl a
 	srl a
-	srl a
-	ld de, $0000
+	ld de, 0 ; could just load d
 	ld e, a
 	ld hl, vBGMapA
-	ld b, $20
-
-jr_000_2a3e:
+	ld b, BG_MAP_WIDTH ; you can do this with a simple shift. No need for loops
+.multiply_loop:
 	add hl, de
 	dec b
-	jr nz, jr_000_2a3e
+	jr nz, .multiply_loop
 
-	ld a, [$ff00+$b3]
-	sub $08
+	ld a, [hCoordConversionX]
+	sub 8
+	srl a ; as above, rrca + and would be shorter
 	srl a
 	srl a
-	srl a
-	ld de, $0000
+	ld de, 0 ; e doesn't need touching and d is already zero
 	ld e, a
-	add hl, de
+	add hl, de ; the alignment means an 8-bit add would suffice
 	ld a, h
-	ld [$ff00+$b5], a
+	ld [hCoordConversionHi], a
 	ld a, l
-	ld [$ff00+$b4], a
+	ld [hCoordConversionLo], a
 	ret
 
+Unused_TilemapAddrToSpriteCoord::
+	; better way to write this:
+	; ld a, [hCoordConversionLo]
+	; ld e, a
+	; ld a, [hCoordConversionHi]
+	; rept 3
+	; rl e
+	; rlca
+	; endr
+	; and $1f
+	; add 16
+	; ld [hCoordConversionY], a
 
-	ld a, [$ff00+$b5]
+	ld a, [hCoordConversionHi]
 	ld d, a
-	ld a, [$ff00+$b4]
+	ld a, [hCoordConversionLo]
 	ld e, a
-	ld b, $04
 
-jr_000_2a60:
+	ld b, 4
+.shift_loop:
 	rr d
 	rr e
 	dec b
-	jr nz, jr_000_2a60
+	jr nz, .shift_loop
 
 	ld a, e
 	sub $84
 	and $fe
-	rlca
+	rlca ; or add a, without the carry nastiness
 	rlca
 	add $08
-	ld [$ff00+$b2], a
-	ld a, [$ff00+$b4]
+	ld [hCoordConversionY], a
+
+	ld a, [hCoordConversionLo]
 	and $1f
+	rla ; again, carry nastiness
 	rla
 	rla
-	rla
-	add $08
-	ld [$ff00+$b3], a
+	add 8
+	ld [hCoordConversionX], a
 	ret
 
 

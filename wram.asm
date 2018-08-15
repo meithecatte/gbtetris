@@ -1,5 +1,8 @@
 SECTION "OAM Buffer", WRAM0[$c000]
-wOAMBuffer:: ds 160
+wOAMBuffer:: ds 16
+wOAMBuffer_CurrentPiece:: ds 16
+wOAMBuffer_NextPiece:: ds 16
+	ds 112
 wOAMBuffer_End::
 
 wScore:: ds 3
