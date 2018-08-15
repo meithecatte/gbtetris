@@ -41,4 +41,10 @@
 
 	charmap " ", $2f
 
+	charmap "c", $33
+
 	charmap "...", $60
+
+	charmap "'", $9b
+	charmap ",", $9c
+	charmap ".'", $9d

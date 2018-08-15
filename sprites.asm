@@ -205,8 +205,11 @@ SpriteDescriptorPointers::
 	dw SpriteZ0, SpriteZ1, SpriteZ2, SpriteZ3
 	dw SpriteS0, SpriteS1, SpriteS2, SpriteS3
 	dw SpriteT0, SpriteT1, SpriteT2, SpriteT3
+	dw SpriteTypeA, SpriteTypeB, SpriteTypeC, SpriteOff
+	dw SpriteDigit0, SpriteDigit1, SpriteDigit2, SpriteDigit3, SpriteDigit4
+	dw SpriteDigit5, SpriteDigit6, SpriteDigit7, SpriteDigit8, SpriteDigit9
 
-INCBIN "baserom.gb", $2be4, $2c68 - $2be4
+INCBIN "baserom.gb", $2c00, $2c68 - $2c00
 
 SpriteL0::
 	dw SpriteL0Objects
@@ -320,7 +323,63 @@ SpriteT3::
 	dw SpriteT1Objects
 	db -17, -16
 
-INCBIN "baserom.gb", $2cd8, $2da0 - $2cd8
+SpriteTypeA::
+	dw SpriteTypeAObjects
+	db 0, -24
+
+SpriteTypeB::
+	dw SpriteTypeBObjects
+	db 0, -24
+
+SpriteTypeC::
+	dw SpriteTypeCObjects
+	db 0, -24
+
+SpriteOff::
+	dw SpriteOffObjects
+	db 0, -24
+
+SpriteDigit0::
+	dw SpriteDigit0Objects
+	db 0, 0
+
+SpriteDigit1::
+	dw SpriteDigit1Objects
+	db 0, 0
+
+SpriteDigit2::
+	dw SpriteDigit2Objects
+	db 0, 0
+
+SpriteDigit3::
+	dw SpriteDigit3Objects
+	db 0, 0
+
+SpriteDigit4::
+	dw SpriteDigit4Objects
+	db 0, 0
+
+SpriteDigit5::
+	dw SpriteDigit5Objects
+	db 0, 0
+
+SpriteDigit6::
+	dw SpriteDigit6Objects
+	db 0, 0
+
+SpriteDigit7::
+	dw SpriteDigit7Objects
+	db 0, 0
+
+SpriteDigit8::
+	dw SpriteDigit8Objects
+	db 0, 0
+
+SpriteDigit9::
+	dw SpriteDigit9Objects
+	db 0, 0
+
+INCBIN "baserom.gb", $2d10, $2da0 - $2d10
 
 ; make it readable
 _ EQU $fe
@@ -518,7 +577,63 @@ SpriteT3Objects::
 	db _,  $85,  $85, _
 	db _,  $85,  $ff
 
-INCBIN "baserom.gb", $2f75, $31f1 - $2f75
+SpriteTypeAObjects::
+	dw SpriteDimHorizontal
+	db "A-TYPE", $ff
+
+SpriteTypeBObjects::
+	dw SpriteDimHorizontal
+	db "B-TYPE", $ff
+
+SpriteTypeCObjects::
+	dw SpriteDimHorizontal
+	db "C-TYPE", $ff
+
+SpriteOffObjects::
+	dw SpriteDimHorizontal
+	db " OFF  ", $ff ; you could just introduce an offset in SpriteOff instead of these spaces...
+
+SpriteDigit0Objects::
+	dw SpriteDimHorizontal
+	db "0", $ff
+
+SpriteDigit1Objects::
+	dw SpriteDimHorizontal
+	db "1", $ff
+
+SpriteDigit2Objects::
+	dw SpriteDimHorizontal
+	db "2", $ff
+
+SpriteDigit3Objects::
+	dw SpriteDimHorizontal
+	db "3", $ff
+
+SpriteDigit4Objects::
+	dw SpriteDimHorizontal
+	db "4", $ff
+
+SpriteDigit5Objects::
+	dw SpriteDimHorizontal
+	db "5", $ff
+
+SpriteDigit6Objects::
+	dw SpriteDimHorizontal
+	db "6", $ff
+
+SpriteDigit7Objects::
+	dw SpriteDimHorizontal
+	db "7", $ff
+
+SpriteDigit8Objects::
+	dw SpriteDimHorizontal
+	db "8", $ff
+
+SpriteDigit9Objects::
+	dw SpriteDimHorizontal
+	db "9", $ff
+
+INCBIN "baserom.gb", $2fc1, $31f1 - $2fc1
 
 PURGE _
 
@@ -539,4 +654,15 @@ SpriteDim4x4::
 	db 24, 8
 	db 24, 16
 	db 24, 24
-INCBIN "baserom.gb", $3211, $3287 - $3211
+
+SpriteDimHorizontal:
+	db 0, 0
+	db 0, 8
+	db 0, 16
+	db 0, 24
+	db 0, 32
+	db 0, 40
+	db 0, 48
+	db 0, 56
+
+INCBIN "baserom.gb", $3221, $3287 - $3221

@@ -4763,7 +4763,7 @@ jr_000_211d:
 	inc de
 	ld a, [de]
 	ld h, a
-	ld b, $00
+	ld b, 0
 	dec c
 	add hl, bc
 	ld a, h

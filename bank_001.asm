@@ -10,7 +10,24 @@ GFX_Common_End::
 INCBIN "baserom.gb", $437F, $4A4F - $437F
 
 CopyrightTilemap::
-INCBIN "gfx/copyright_tilemap.bin"
+	db "                    "
+	db "'TM AND c1987 ELORG,"
+	db " TETRIS LICENSED TO "
+	db "    BULLET PROOF    "
+	db "    SOFTWARE AND    "
+	db "   SUB-LICENSED TO  "
+	db "      NINTENDO.     "
+	db "                    "
+	db " c1989 BULLET PROOF "
+	db "      SOFTWARE.     "
+	db "   c", $30, $31, $32, $31, " ", $34, $35, $36, $37, $38, $39, "     " ; 1989 Nintendo
+	db "                    "
+	db "ALL RIGHTS RESERVED."
+	db "                    "
+	db "  ORIGINAL CONCEPT, "
+	db " DESIGN AND PROGRAM "
+	db "BY ALEXEY PAZHITNOV.'"
+	db "                    "
 
 TitlescreenTilemap::
 INCBIN "gfx/titlescreen_tilemap.bin"
