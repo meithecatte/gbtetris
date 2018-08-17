@@ -37,6 +37,10 @@ gfx/common2.trunc.2bpp: gfx/common2.2bpp
 	cp $< $@
 	truncate -s 3152 $@
 
+gfx/titlescreen.trunc.2bpp: gfx/titlescreen.2bpp
+	cp $< $@
+	truncate -s 1744 $@
+
 clean:
 	rm -f main10.o tetris10.gb tetris10.sym tetris10.map main11.o tetris11.gb tetris11.sym tetris11.map
 	find . \( -iname '*.1bpp' -o -iname '*.2bpp' \) -exec rm {} +

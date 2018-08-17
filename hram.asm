@@ -33,10 +33,10 @@ hCollisionOccured_NeverRead EQU $ff9b
 
 hHighscoreBlink  EQU $ff9c
 
-hBuffer         EQU $ffa0
-hSavedIE        EQU $ffa1
-hDelayCounter   EQU $ffa6
-hDelayCounter2  EQU $ffa7
+hBuffer               EQU $ffa0
+hSavedIE              EQU $ffa1
+hDelayCounter         EQU $ffa6
+hFastDropDelayCounter EQU $ffa7
 
 hLevel EQU $ffa9
 
@@ -72,8 +72,12 @@ hSendBufferValid EQU $ffce
 hSendBuffer      EQU $ffcf
 hRecvBuffer      EQU $ffd0
 
-hGameState     EQU $ffe1
-hDemoNumber    EQU $ffe4
+hSeenNonZero EQU $ffe0
+
+hGameState        EQU $ffe1
+hRowToMove        EQU $ffe3
+hDemoNumber       EQU $ffe4
+hFastDropDistance EQU $ffe5
 
 hEnableHighscoreVBlank EQU $ffe8
 

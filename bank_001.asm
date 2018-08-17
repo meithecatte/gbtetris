@@ -1,44 +1,3 @@
-INCBIN "baserom.gb", $437F, $4A4F - $437F
-
-CopyrightTilemap::
-	db "                    "
-	db "'TM AND c1987 ELORG,"
-	db " TETRIS LICENSED TO "
-	db "    BULLET PROOF    "
-	db "    SOFTWARE AND    "
-	db "   SUB-LICENSED TO  "
-	db "      NINTENDO.     "
-	db "                    "
-	db " c1989 BULLET PROOF "
-	db "      SOFTWARE.     "
-	db "   c", $30, $31, $32, $31, " ", $34, $35, $36, $37, $38, $39, "     " ; 1989 Nintendo
-	db "                    "
-	db "ALL RIGHTS RESERVED."
-	db "                    "
-	db "  ORIGINAL CONCEPT, "
-	db " DESIGN AND PROGRAM "
-	db "BY ALEXEY PAZHITNOV.'"
-	db "                    "
-
-TitlescreenTilemap::
-INCBIN "gfx/titlescreen_tilemap.bin"
-
-ModeSelectTilemap::
-INCBIN "gfx/mode_select_tilemap.bin"
-
-TypeAMenuTilemap::
-INCBIN "gfx/type_a_menu_tilemap.bin"
-
-TypeBMenuTilemap::
-INCBIN "gfx/type_b_menu_tilemap.bin"
-
-INCBIN "baserom.gb", $5157, $525c - $5157
-
-MultiplayerMenuTilemap::
-INCBIN "gfx/multiplayer_menu_tilemap.bin"
-
-INCBIN "baserom.gb", $53c4, $6552 - $53c4
-
 GenericEmptyRoutine3::
 	ret
 
@@ -59,7 +18,7 @@ UpdateAudio::
 	jr nz, jr_001_65e3
 
 jr_001_6568:
-	ld a, [$ff00+$e4]
+	ld a, [hDemoNumber]
 	and a
 	jr z, jr_001_657a
 

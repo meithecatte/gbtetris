@@ -49,12 +49,12 @@ VBlankInterrupt::
 	cp $03
 	jr nz, .unk027a
 
-	ld hl, $986d
-	call Call_000_249b
+	ld hl, vBGMapA + 3 * BG_MAP_WIDTH + 13
+	call RenderScore
 	ld a, $01
 	ld [$ff00+$e0], a
-	ld hl, $9c6d
-	call Call_000_249b
+	ld hl, vBGMapB + 3 * BG_MAP_WIDTH + 13
+	call RenderScore
 	xor a
 	ld [$c0ce], a
 

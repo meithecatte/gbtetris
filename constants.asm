@@ -38,6 +38,7 @@ STATE_HIGHSCORE_ENTER_NAME          EQU 21
 STATE_22                            EQU 22
 STATE_24                            EQU 24
 STATE_26                            EQU 26
+STATE_27                            EQU 27
 STATE_34                            EQU 34
 STATE_35                            EQU 35
 STATE_LOAD_COPYRIGHT                EQU 36
@@ -176,3 +177,7 @@ PLAYFIELD_WIDTH EQU 10
 
 AUTOFIRE_DELAY EQU 23
 AUTOFIRE_RATE  EQU 9
+FASTDROP_RATE  EQU 3
+
+INITIAL_TETROMINO_Y EQU $18
+INITIAL_TETROMINO_X EQU $3f

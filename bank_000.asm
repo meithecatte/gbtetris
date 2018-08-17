@@ -249,7 +249,7 @@ MainLoop::
 	cp  A_BUTTON | B_BUTTON | SELECT | START
 	jp z, SoftReset
 
-	assert hDelayCounter + 1 == hDelayCounter2
+	assert hDelayCounter + 1 == hFastDropDelayCounter
 	ld hl, hDelayCounter
 	ld b, 2
 .counter_loop:
@@ -402,7 +402,7 @@ LoadTitlescreen::
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -660,7 +660,7 @@ LoadMultiplayerMusicSelect::
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	call JumpResetAudio
 	ld a, STATE_43
 	ld [hGameState], a
@@ -798,7 +798,7 @@ jr_000_0703:
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 
 jr_000_072c:
 	ld [hSerialDone], a
@@ -1101,7 +1101,7 @@ Jump_000_0895:
 	xor a
 
 jr_000_08b9:
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -1383,7 +1383,7 @@ Jump_000_0a35:
 	ld a, $1c
 	ld [hGameState], a
 	ld a, $02
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ld a, $03
 	ld [hSerialState], a
 	ld a, [hMasterSlave]
@@ -1600,7 +1600,7 @@ Call_000_0b10:
 HandleState28::
 	ld a, $01
 	ld [rIE], a
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	and a
 	jr nz, jr_000_0b66
 
@@ -1696,10 +1696,10 @@ HandleState26::
 	ld [$ff00+$b1], a
 	ld a, $aa
 	ld [$ff00+$d1], a
-	ld a, $1b
+	ld a, STATE_27
 	ld [hGameState], a
 	ld a, $05
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	jr jr_000_0be7
 
 jr_000_0bd7:
@@ -1910,7 +1910,7 @@ jr_000_0cc8:
 	ld a, $1b
 	ld [hGameState], a
 	ld a, $05
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld c, $01
 	ld b, $12
 	jr jr_000_0c80
@@ -2008,7 +2008,7 @@ jr_000_0d36:
 	jr nz, jr_000_0d31
 
 	ld a, $02
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ld [$ff00+$d4], a
 	xor a
 	ld [$ff00+$d3], a
@@ -2049,7 +2049,7 @@ jr_000_0d77:
 	ld c, $43
 	call Call_000_11a3
 	xor a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ld a, [$ff00+$d1]
 	cp $aa
 	ld a, $1e
@@ -2235,12 +2235,12 @@ jr_000_0e73:
 
 
 jr_000_0e77:
-	ld a, [hDelayCounter2]
+	ld a, [hFastDropDelayCounter]
 	and a
 	ret nz
 
 	ld a, $0f
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld hl, $c223
 	ld a, [hl]
 	xor $01
@@ -2419,12 +2419,12 @@ jr_000_0f67:
 
 
 jr_000_0f6b:
-	ld a, [hDelayCounter2]
+	ld a, [hFastDropDelayCounter]
 	and a
 	ret nz
 
 	ld a, $0f
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld hl, $c203
 	ld a, [hl]
 	xor $01
@@ -3081,12 +3081,12 @@ HandleState3::
 
 
 jr_000_1301:
-	ld a, [hDelayCounter2]
+	ld a, [hFastDropDelayCounter]
 	and a
 	jr nz, jr_000_1311
 
 	ld a, $06
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld hl, $c213
 	ld a, [hl]
 	xor $01
@@ -3291,12 +3291,12 @@ HandleState50::
 
 
 jr_000_1433:
-	ld a, [hDelayCounter2]
+	ld a, [hFastDropDelayCounter]
 	and a
 	jr nz, jr_000_1443
 
 	ld a, $06
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld hl, $c213
 	ld a, [hl]
 	xor $01
@@ -3320,12 +3320,12 @@ HandleState51::
 
 
 Call_000_145e:
-	ld a, [hDelayCounter2]
+	ld a, [hFastDropDelayCounter]
 	and a
 	ret nz
 
 	ld a, $0a
-	ld [hDelayCounter2], a
+	ld [hFastDropDelayCounter], a
 	ld a, $03
 	ld [$dff8], a
 	ld b, $02
@@ -3450,7 +3450,7 @@ LoadPlayfield::
 	call Call_000_204d
 	call ResetGameplayVariablesMaybe
 	xor a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -4022,7 +4022,7 @@ HandleState4::
 
 jr_000_1d6a:
 	xor a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, $16
@@ -4483,7 +4483,7 @@ Call_000_1fec:
 	and a
 	ret nz
 
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $05
 	ret nz
 
@@ -4533,7 +4533,7 @@ jr_000_2024:
 FillPlayfieldWithTileAndDoSomethingElseImNotSure::
 	push af
 	ld a, $02
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	pop af
 	; fallthrough
 FillPlayfieldWithTile::
@@ -4668,20 +4668,21 @@ jr_000_20c0:
 	ret
 
 Gameplay_HoldingDown:
-	ld a, [wFastDropCounter]
+	ld a, [wDidntUseFastDropOnThisPiece]
 	and a
-	jr z, jr_000_20de
+	jr z, .not_first_time
 
+	; make it so you need to release and start holding again for a new piece
 	ld a, [hKeysPressed]
 	and D_DOWN | D_LEFT | D_RIGHT
 	cp D_DOWN
 	jr nz, HandleGravity.after_joypad_check
 
 	xor a
-	ld [wFastDropCounter], a
+	ld [wDidntUseFastDropOnThisPiece], a
 
-jr_000_20de:
-	ld a, [hDelayCounter2]
+.not_first_time:
+	ld a, [hFastDropDelayCounter]
 	and a
 	jr nz, HandleGravity.end
 
@@ -4689,15 +4690,15 @@ jr_000_20de:
 	and a
 	jr nz, HandleGravity.end
 
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	and a
 	jr nz, HandleGravity.end
 
-	ld a, $03
-	ld [hDelayCounter2], a
-	ld hl, $ffe5
+	ld a, FASTDROP_RATE
+	ld [hFastDropDelayCounter], a
+	ld hl, hFastDropDistance
 	inc [hl]
-	jr jr_000_211d
+	jr HandleGravity.apply_gravity
 
 HandleGravity:
 	ld a, [hKeysHeld]
@@ -4706,30 +4707,30 @@ HandleGravity:
 	jr z, Gameplay_HoldingDown
 
 .after_joypad_check:
-	ld hl, $ffe5 ; normal xor a / ldh is shorter, faster, and less unusual
-	ld [hl], $00
+	ld hl, hFastDropDistance ; normal xor a / ldh is shorter, faster, and less unusual
+	ld [hl], 0
 	ld a, [hGravityCounter]
 	and a
-	jr z, jr_000_2110
+	jr z, .timing_ok
 	dec a
 	ld [hGravityCounter], a
 .end:
 	call UpdateCurrentTetromino ; why no TCO?
 	ret
 
-jr_000_2110:
+.timing_ok:
 	ld a, [hLockdownStage]
 	cp 3
 	ret z
 
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	and a
 	ret nz
 
 	ld a, [hFallingSpeed]
 	ld [hGravityCounter], a
 
-jr_000_211d:
+.apply_gravity:
 	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_Y
 	ld a, [hl]
 	ld [hBuffer], a
@@ -4747,42 +4748,44 @@ jr_000_211d:
 	call UpdateCurrentTetromino
 	ld a, 1
 	ld [hLockdownStage], a
-	ld [wFastDropCounter], a
-	ld a, [$ff00+$e5]
+	ld [wDidntUseFastDropOnThisPiece], a
+	ld a, [hFastDropDistance]
 	and a
-	jr z, jr_000_215e
+	jr z, .scoring_done ; didn't fast drop? then there's no points to award
 
 	ld c, a
 	ld a, [hGameType]
 	cp GAME_TYPE_A
-	jr z, jr_000_2181
+	jr z, .apply_type_a_score
 
-	ld de, $c0c0
+	ld de, wTypeBScoring_Drop
 	ld a, [de]
 	ld l, a
 	inc de
 	ld a, [de]
 	ld h, a
+
 	ld b, 0
 	dec c
 	add hl, bc
+
 	ld a, h
 	ld [de], a
 	ld a, l
 	dec de
 	ld [de], a
 
-jr_000_215b:
+.scoring_applied:
 	xor a
-	ld [$ff00+$e5], a
+	ld [hFastDropDistance], a
 
-jr_000_215e:
+.scoring_done:
 	ld a, [wSpriteList sprite 0 + SPRITE_OFFSET_Y]
-	cp $18
+	cp INITIAL_TETROMINO_Y
 	ret nz
 
 	ld a, [wSpriteList sprite 0 + SPRITE_OFFSET_X]
-	cp $3f
+	cp INITIAL_TETROMINO_X
 	ret nz
 
 	ld hl, hFailedTetrominoPlacements
@@ -4801,30 +4804,29 @@ jr_000_215e:
 	inc [hl]
 	ret
 
-
-jr_000_2181:
+.apply_type_a_score:
 	xor a
 
-jr_000_2182:
+.score_loop:
 	dec c
-	jr z, jr_000_2189
+	jr z, .got_score
 
 	inc a
 	daa
-	jr jr_000_2182
+	jr .score_loop
 
-jr_000_2189:
+.got_score:
 	ld e, a
-	ld d, $00
+	ld d, 0
 	ld hl, wScore
 	call AddBCD
 	ld a, $01
 	ld [$c0ce], a
-	jr jr_000_215b
+	jr .scoring_applied
 
 Call_000_2199:
 	ld a, [hLockdownStage]
-	cp $02
+	cp 2
 	ret nz
 
 	ld a, $02
@@ -4860,7 +4862,7 @@ jr_000_21b1:
 
 jr_000_21c6:
 	push de
-	ld de, $0020
+	ld de, BG_MAP_WIDTH
 	add hl, de
 	pop de
 	dec b
@@ -5016,7 +5018,7 @@ Call_000_2240:
 	ld a, $0d
 	ld [hDelayCounter], a
 	ld a, $01
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 
 .unk2:
 	xor a
@@ -5060,7 +5062,7 @@ Call_000_22ad:
 	and a
 	ret nz
 
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $01
 	ret nz
 
@@ -5115,7 +5117,7 @@ jr_000_22e7:
 
 	call Call_000_22f3
 	ld a, $02
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ret
 
 
@@ -5131,7 +5133,7 @@ Call_000_22f3: ; TODO
 
 
 Call_000_22fe:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $02
 	ret nz
 
@@ -5142,7 +5144,7 @@ Call_000_22fe:
 
 
 Call_000_230d:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $03
 	ret nz
 
@@ -5153,7 +5155,7 @@ Call_000_230d:
 
 
 Call_000_231c:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $04
 	ret nz
 
@@ -5164,7 +5166,7 @@ Call_000_231c:
 
 
 Call_000_232b:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $05
 	ret nz
 
@@ -5175,7 +5177,7 @@ Call_000_232b:
 
 
 Call_000_233a:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $06
 	ret nz
 
@@ -5186,7 +5188,7 @@ Call_000_233a:
 
 
 Call_000_2349:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $07
 	ret nz
 
@@ -5197,7 +5199,7 @@ Call_000_2349:
 
 
 Call_000_2358:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $08
 	ret nz
 
@@ -5232,7 +5234,7 @@ jr_000_2375:
 
 
 Call_000_2383:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $09
 	ret nz
 
@@ -5243,7 +5245,7 @@ Call_000_2383:
 
 
 Call_000_2392:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0a
 	ret nz
 
@@ -5254,7 +5256,7 @@ Call_000_2392:
 
 
 Call_000_23a1:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0b
 	ret nz
 
@@ -5265,7 +5267,7 @@ Call_000_23a1:
 
 
 Call_000_23b0:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0c
 	ret nz
 
@@ -5276,7 +5278,7 @@ Call_000_23b0:
 
 
 Call_000_23bf:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0d
 	ret nz
 
@@ -5287,7 +5289,7 @@ Call_000_23bf:
 
 
 Call_000_23ce:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0e
 	ret nz
 
@@ -5298,7 +5300,7 @@ Call_000_23ce:
 
 
 Call_000_23dd:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $0f
 	ret nz
 
@@ -5309,7 +5311,7 @@ Call_000_23dd:
 
 
 Call_000_23ec:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $10
 	ret nz
 
@@ -5321,7 +5323,7 @@ Call_000_23ec:
 
 
 Call_000_23fe:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $11
 	ret nz
 
@@ -5329,14 +5331,14 @@ Call_000_23fe:
 	ld de, $c842
 	call Call_000_2506
 	ld hl, $9c6d
-	call Call_000_249b
+	call RenderScore
 	ld a, $01
 	ld [$ff00+$e0], a
 	ret
 
 
 Call_000_2417:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $12
 	ret nz
 
@@ -5344,21 +5346,21 @@ Call_000_2417:
 	ld de, $c822
 	call Call_000_2506
 	ld hl, $986d
-	call Call_000_249b
+	call RenderScore
 	ret
 
 
 Call_000_242c:
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	cp $13
 	ret nz
 
-	ld [wFastDropCounter], a
+	ld [wDidntUseFastDropOnThisPiece], a
 	ld hl, $9802
 	ld de, $c802
 	call Call_000_2506
 	xor a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, [hGameState]
@@ -5380,7 +5382,7 @@ Call_000_242c:
 	ld c, $01
 
 .unk245f:
-	call Call_000_2a84
+	call DisplayBCD
 	ld a, [$ff00+$c0]
 	cp $37
 	jr z, .unk248b
@@ -5429,17 +5431,18 @@ Call_000_242c:
 	ret
 
 
-Call_000_249b:
+RenderScore::
 	ld a, [hGameState]
+	assert STATE_GAMEPLAY == 0
 	and a
 	ret nz
 
-	ld a, [$ff00+$c0]
-	cp $37
+	ld a, [hGameType]
+	cp GAME_TYPE_A
 	ret nz
 
-	ld de, $c0a2
-	call Call_000_2a7e
+	ld de, wScore + SCORE_SIZE - 1
+	call Call_000_2a7e ; why no TCO?
 	ret
 
 
@@ -5538,9 +5541,9 @@ jr_000_2508:
 	dec b
 	jr nz, jr_000_2508
 
-	ld a, [$ff00+$e3]
+	ld a, [hRowToMove]
 	inc a
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ret
 
 ; If the player has pressed left or right, and the current position allows such movement, move the
@@ -6204,7 +6207,7 @@ LoadFont::
 
 LoadTitlescreenTileset::
 	call LoadFont
-	ld bc, $0da0
+	ld bc, 218 tiles ; GFX_Common and GFX_Titlescreen
 	call CopyBytes ; why no TCO?
 	ret
 
@@ -6268,7 +6271,7 @@ jr_000_285b:
 jr_000_286e:
 	pop hl
 	ld a, $02
-	ld [$ff00+$e3], a
+	ld [hRowToMove], a
 	ret
 
 
@@ -6644,195 +6647,7 @@ jr_000_29d5:
 	add hl, hl
 	cpl
 
-ReadJoypad::
-	ld a, JOYP_DPAD
-	ld [rJOYP], a
-
-REPT 2
-	ld a, [rJOYP]
-ENDR
-
-IF DEF(INTERNATIONAL)
-	REPT 2
-		ld a, [rJOYP]
-	ENDR
-ENDC
-
-	cpl
-	and $0f
-	swap a
-	ld b, a
-	ld a, JOYP_BUTTONS
-	ld [rJOYP], a
-
-REPT 6
-	ld a, [rJOYP]
-ENDR
-
-IF DEF(INTERNATIONAL)
-	REPT 4
-		ld a, [rJOYP]
-	ENDR
-ENDC
-
-	cpl
-	and $0f
-	or b
-	ld c, a
-	ld a, [hKeysHeld]
-	xor c
-	and c
-	ld [hKeysPressed], a
-	ld a, c
-	ld [hKeysHeld], a
-	ld a, JOYP_DESELECT
-	ld [rJOYP], a
-	ret
-
-; convert a grid-aligned sprite coordinate pair into a tilemap address of the corresponding tile
-; Input: hCoordConversionX, hCoordConversionY
-; Output in HL as well as hCoordConversionHi and hCoordConversionLo
-; Clobbers A, B, DE
-SpriteCoordToTilemapAddr::
-	ld a, [hCoordConversionY]
-	sub 16
-	srl a ; rrca + and would be shorter
-	srl a
-	srl a
-	ld de, 0 ; could just load d
-	ld e, a
-	ld hl, vBGMapA
-	ld b, BG_MAP_WIDTH ; you can do this with a simple shift. No need for loops
-.multiply_loop:
-	add hl, de
-	dec b
-	jr nz, .multiply_loop
-
-	ld a, [hCoordConversionX]
-	sub 8
-	srl a ; as above, rrca + and would be shorter
-	srl a
-	srl a
-	ld de, 0 ; e doesn't need touching and d is already zero
-	ld e, a
-	add hl, de ; the alignment means an 8-bit add would suffice
-	ld a, h
-	ld [hCoordConversionHi], a
-	ld a, l
-	ld [hCoordConversionLo], a
-	ret
-
-Unused_TilemapAddrToSpriteCoord::
-	; better way to write this:
-	; ld a, [hCoordConversionLo]
-	; ld e, a
-	; ld a, [hCoordConversionHi]
-	; rept 3
-	; rl e
-	; rlca
-	; endr
-	; and $1f
-	; add 16
-	; ld [hCoordConversionY], a
-
-	ld a, [hCoordConversionHi]
-	ld d, a
-	ld a, [hCoordConversionLo]
-	ld e, a
-
-	ld b, 4
-.shift_loop:
-	rr d
-	rr e
-	dec b
-	jr nz, .shift_loop
-
-	ld a, e
-	sub $84 ; this feels wrong - in fact, a wrong value here makes it break
-	and $fe
-	rlca ; or add a, without the carry nastiness
-	rlca
-	add 8
-	ld [hCoordConversionY], a
-
-	ld a, [hCoordConversionLo]
-	and $1f
-	rla ; again, carry nastiness
-	rla
-	rla
-	add 8
-	ld [hCoordConversionX], a
-	ret
-
-Call_000_2a7e:
-	ld a, [$ff00+$e0]
-	and a
-	ret z
-
-Call_000_2a82:
-	ld c, $03
-
-Call_000_2a84:
-	xor a
-	ld [$ff00+$e0], a
-
-jr_000_2a87:
-	ld a, [de]
-	ld b, a
-	swap a
-	and $0f
-	jr nz, jr_000_2ab7
-
-	ld a, [$ff00+$e0]
-	and a
-	ld a, $00
-	jr nz, jr_000_2a98
-
-	ld a, $2f
-
-jr_000_2a98:
-	ld [hl+], a
-	ld a, b
-	and $0f
-	jr nz, jr_000_2abf
-
-	ld a, [$ff00+$e0]
-	and a
-	ld a, $00
-	jr nz, jr_000_2aae
-
-	ld a, $01
-	cp c
-	ld a, $00
-	jr z, jr_000_2aae
-
-	ld a, $2f
-
-jr_000_2aae:
-	ld [hl+], a
-	dec e
-	dec c
-	jr nz, jr_000_2a87
-
-	xor a
-	ld [$ff00+$e0], a
-	ret
-
-
-jr_000_2ab7:
-	push af
-	ld a, $01
-	ld [$ff00+$e0], a
-	pop af
-	jr jr_000_2a98
-
-jr_000_2abf:
-	push af
-	ld a, $01
-	ld [$ff00+$e0], a
-	pop af
-	jr jr_000_2aae
-
+INCLUDE "utils.asm"
 INCLUDE "sprites.asm"
 
 GFX_Common2::
@@ -6844,11 +6659,53 @@ INCBIN "gfx/playfield_a.bin"
 TypeBPlayfieldTilemap::
 INCBIN "gfx/playfield_b.bin"
 
-; LoadTileset assumes that GFX_Common follows GFX_Font
+; LoadTileset and LoadTitlescreenTileset assume this order
 GFX_Font::
 INCBIN "gfx/font.1bpp"
 GFX_Font_End::
 
 GFX_Common::
 INCBIN "gfx/common.2bpp"
-GFX_Common_End::
+
+GFX_Titlescreen::
+INCBIN "gfx/titlescreen.trunc.2bpp"
+; end order assumption
+
+CopyrightTilemap::
+	db "                    "
+	db "'TM AND c1987 ELORG,"
+	db " TETRIS LICENSED TO "
+	db "    BULLET PROOF    "
+	db "    SOFTWARE AND    "
+	db "   SUB-LICENSED TO  "
+	db "      NINTENDO.     "
+	db "                    "
+	db " c1989 BULLET PROOF "
+	db "      SOFTWARE.     "
+	db "   c", $30, $31, $32, $31, " ", $34, $35, $36, $37, $38, $39, "     " ; 1989 Nintendo
+	db "                    "
+	db "ALL RIGHTS RESERVED."
+	db "                    "
+	db "  ORIGINAL CONCEPT, "
+	db " DESIGN AND PROGRAM "
+	db "BY ALEXEY PAZHITNOV.'"
+	db "                    "
+
+TitlescreenTilemap::
+INCBIN "gfx/titlescreen_tilemap.bin"
+
+ModeSelectTilemap::
+INCBIN "gfx/mode_select_tilemap.bin"
+
+TypeAMenuTilemap::
+INCBIN "gfx/type_a_menu_tilemap.bin"
+
+TypeBMenuTilemap::
+INCBIN "gfx/type_b_menu_tilemap.bin"
+
+INCBIN "baserom.gb", $5157, $525c - $5157
+
+MultiplayerMenuTilemap::
+INCBIN "gfx/multiplayer_menu_tilemap.bin"
+
+INCBIN "baserom.gb", $53c4, $6552 - $53c4
