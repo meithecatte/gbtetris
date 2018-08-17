@@ -443,7 +443,7 @@ ENDC
 	inc l
 	ld [hl], $58 ; tile, attr stays 0
 
-	ld a, $03 ; TODO
+	ld a, SONG_TITLESCREEN
 	ld [wPlaySong], a
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
@@ -462,7 +462,7 @@ ENDC
 	ret
 
 StartDemo::
-	ld a, GAME_TYPE_A ; TODO
+	ld a, GAME_TYPE_A
 	ld [hGameType], a
 	ld a, 9
 	ld [hTypeALevel], a
@@ -471,9 +471,9 @@ StartDemo::
 	ld [hDemoLengthCounter], a
 	ld [hLastDemoInput], a
 	ld [hCountdownTillNextDemoInput], a
-	ld a, $63
+	ld a, HIGH(DemoDataTypeA)
 	ld [hDemoPtrHi], a
-	ld a, $30
+	ld a, LOW(DemoDataTypeA)
 	ld [hDemoPtrLo], a
 	ld a, [hDemoNumber]
 	cp DEMO_TYPE_A
@@ -486,9 +486,9 @@ StartDemo::
 	ld [hTypeBLevel], a
 	ld a, 2
 	ld [hTypeBHigh], a
-	ld a, $64
+	ld a, HIGH(DemoDataTypeB)
 	ld [hDemoPtrHi], a
-	ld a, $30
+	ld a, LOW(DemoDataTypeB)
 	ld [hDemoPtrLo], a ; this is set to the same value above...
 	ld a, 17
 	ld [hDemoLengthCounter], a
@@ -5947,7 +5947,6 @@ unk26fd::
 	jr nz, .loop
 	ret
 
-
 ; there's no reason not to use LoadSprites, apart from the free EI
 LoadGameplaySprite:
 	ld a, [de]
@@ -5978,183 +5977,7 @@ TypeBMenuSpriteList::
 	db SPRITE_VISIBLE, 64, 28, SPRITE_DIGIT_0, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
 	db SPRITE_VISIBLE, 64, 116, SPRITE_DIGIT_0, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
 
-	nop
-	ld b, b
-	ld l, b
-	ld hl, $0000
-	nop
-	ld a, b
-	ld l, b
-	ld hl, $0000
-	nop
-	ld h, b
-	ld h, b
-	ld a, [hl+]
-	add b
-	nop
-	nop
-	ld h, b
-
-jr_000_2755:
-	ld [hl], d
-	ld a, [hl+]
-	add b
-	jr nz, jr_000_275a
-
-jr_000_275a:
-	ld l, b
-	jr c, jr_000_279b
-
-	add b
-	nop
-	nop
-	ld h, b
-	ld h, b
-	ld [hl], $80
-	nop
-	nop
-	ld h, b
-	ld [hl], d
-	ld [hl], $80
-	jr nz, jr_000_276c
-
-jr_000_276c:
-	ld l, b
-	jr c, jr_000_27a1
-
-	add b
-	nop
-	nop
-	ld h, b
-	ld h, b
-	ld l, $80
-	nop
-	nop
-	ld l, b
-	jr c, jr_000_27b7
-
-	add b
-	nop
-	nop
-	ld h, b
-	ld h, b
-	ld a, [hl-]
-	add b
-	nop
-	nop
-	ld l, b
-	jr c, jr_000_27b7
-
-	add b
-	nop
-	add b
-	ccf
-	ld b, b
-	ld b, h
-	nop
-	nop
-	add b
-	ccf
-	jr nz, jr_000_27dd
-
-	nop
-	nop
-	add b
-	ccf
-	jr nc, jr_000_27df
-
-	nop
-	nop
-
-jr_000_279b:
-	add b
-	ld [hl], a
-	jr nz, jr_000_27e7
-
-	nop
-	nop
-
-jr_000_27a1:
-	add b
-	add a
-	ld c, b
-	ld c, h
-	nop
-	nop
-	add b
-	add a
-	ld e, b
-	ld c, [hl]
-	nop
-	nop
-	add b
-	ld h, a
-	ld c, l
-	ld d, b
-	nop
-	nop
-	add b
-	ld h, a
-	ld e, l
-	ld d, d
-
-jr_000_27b7:
-	nop
-	nop
-	add b
-	adc a
-	adc b
-	ld d, h
-	nop
-	nop
-	add b
-	adc a
-	sbc b
-	ld d, l
-	nop
-	nop
-	nop
-	ld e, a
-	ld d, a
-	inc l
-	nop
-	nop
-	add b
-	add b
-	ld d, b
-	inc [hl]
-	nop
-	nop
-	add b
-	add b
-	ld h, b
-	inc [hl]
-	nop
-	jr nz, jr_000_27d8
-
-jr_000_27d8:
-	ld l, a
-	ld d, a
-	ld e, b
-	nop
-	nop
-
-jr_000_27dd:
-	add b
-	add b
-
-jr_000_27df:
-	ld d, l
-	inc [hl]
-	nop
-	nop
-	add b
-	add b
-	ld e, e
-	inc [hl]
-
-jr_000_27e7:
-	db $00, $20
+INCBIN "baserom.gb", $2741, $27e9 - $2741
 
 ClearTilemapA::
 	ld hl, vBGMapA + BG_MAP_HEIGHT * BG_MAP_WIDTH - 1
@@ -6274,7 +6097,6 @@ jr_000_286e:
 	ld [hRowToMove], a
 	ret
 
-
 DisableLCD::
 	ld a, [rIE]
 	ld [hSavedIE], a
@@ -6293,359 +6115,7 @@ DisableLCD::
 	ld [rIE], a
 	ret
 
-
-	cpl
-	cpl
-	ld de, $1d12
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	cpl
-	cpl
-	inc e
-	dec e
-	ld a, [bc]
-	dec de
-	dec e
-	cpl
-	cpl
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	dec e
-	jr jr_000_28e2
-
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	cpl
-	inc c
-	jr jr_000_28d7
-
-	dec e
-	ld [de], a
-	rla
-	ld e, $0e
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	DB $10
-	ld a, [bc]
-	ld d, $0e
-	cpl
-	cpl
-	cpl
-	cpl
-
-jr_000_28d7:
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	inc e
-	ld [de], a
-	rla
-	DB $10
-	dec d
-
-jr_000_28e2:
-	ld c, $2f
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	ld h, $2f
-	inc b
-	nop
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	dec c
-	jr jr_000_291c
-
-	dec bc
-	dec d
-	ld c, $2f
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	ld h, $2f
-	ld bc, $0000
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	dec e
-	dec de
-	ld [de], a
-
-jr_000_291c:
-	add hl, de
-	dec d
-	ld c, $2f
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	ld h, $2f
-	inc bc
-	nop
-	nop
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	dec e
-	ld c, $1d
-	dec de
-	ld [de], a
-	inc e
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	ld h, $2f
-	ld bc, $0002
-	nop
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	dec c
-	dec de
-	jr jr_000_2972
-
-	inc e
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-
-jr_000_2972:
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	dec e
-	ld de, $1c12
-	cpl
-	inc e
-	dec e
-	ld a, [bc]
-	DB $10
-	ld c, $2f
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	nop
-	cpl
-	rst $38
-	ld h, c
-	ld h, d
-	ld h, d
-	ld h, d
-	ld h, d
-	ld h, d
-	ld h, d
-	ld h, e
-	ld h, h
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	ld h, l
-	ld h, h
-	cpl
-	DB $10
-	ld a, [bc]
-	ld d, $0e
-	cpl
-	ld h, l
-	ld h, h
-	cpl
-	xor l
-	xor l
-	xor l
-	xor l
-	cpl
-	ld h, l
-	ld h, h
-	cpl
-	jr jr_000_29d5
-
-	ld c, $1b
-	cpl
-	ld h, l
-	ld h, h
-	cpl
-	xor l
-	xor l
-	xor l
-	xor l
-	cpl
-	ld h, l
-	ld h, [hl]
-	ld l, c
-	ld l, c
-	ld l, c
-	ld l, c
-	ld l, c
-	ld l, c
-	ld l, d
-	add hl, de
-	dec d
-	ld c, $0a
-	inc e
-	ld c, $2f
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-
-jr_000_29d5:
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	cpl
-	dec e
-	dec de
-	ld [hl+], a
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	cpl
-	ld a, [bc]
-	DB $10
-	ld a, [bc]
-	ld [de], a
-	rla
-	daa
-	cpl
-	cpl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	add hl, hl
-	cpl
+INCBIN "baserom.gb", $288d, $29fa - $288d
 
 INCLUDE "utils.asm"
 INCLUDE "sprites.asm"
@@ -6708,4 +6178,205 @@ INCBIN "baserom.gb", $5157, $525c - $5157
 MultiplayerMenuTilemap::
 INCBIN "gfx/multiplayer_menu_tilemap.bin"
 
-INCBIN "baserom.gb", $53c4, $6552 - $53c4
+INCBIN "baserom.gb", $53c4, $6330 - $53c4
+
+DemoDataTypeA::
+	db 0,                 42
+	db D_LEFT,             1
+	db 0,                 29
+	db A_BUTTON,           9
+	db 0,                  7
+	db A_BUTTON,          11
+	db 0,                  3
+	db D_LEFT,             4
+	db 0,                 32
+	db D_LEFT,             6
+	db 0,                 10
+	db D_DOWN,            23
+	db 0,                  6
+	db A_BUTTON,           6
+	db 0,                  4
+	db A_BUTTON,           5
+	db 0,                 30
+	db D_DOWN,            11
+	db 0,                  6
+	db D_DOWN,            28
+	db 0,                 10
+	db D_RIGHT,            8
+	db D_RIGHT + A_BUTTON, 4
+	db A_BUTTON,           2
+	db 0,                  4
+	db A_BUTTON,           6
+	db 0,                  0
+	db D_RIGHT,            6
+	db 0,                  4
+	db D_RIGHT,            5
+	db 0,                 26
+	db D_DOWN,            36
+	db 0,                 21
+	db A_BUTTON,           7
+	db 0,                 32
+	db D_RIGHT,            4
+	db 0,                  5
+	db D_RIGHT,            3
+	db 0,                 13
+	db D_RIGHT,            6
+	db 0,                  3
+	db D_RIGHT,            5
+	db 0,                 37
+	db D_DOWN,            21
+	db 0,                 27
+	db D_RIGHT,            4
+	db 0,                 19
+	db D_DOWN,             3
+	db 0,                 28
+	db D_DOWN,            25
+	db 0,                 26
+	db A_BUTTON,           6
+	db 0,                 10
+	db D_LEFT,             1
+	db 0,                  9
+	db D_LEFT,             2
+	db 0,                 20
+	db D_RIGHT,            3
+	db 0,                 14
+	db D_DOWN,            22
+	db 0,                 10
+	db D_RIGHT,           10
+	db A_BUTTON + D_RIGHT, 6
+	db D_RIGHT,           22
+	db 0,                 19
+	db D_DOWN,            37
+	db 0,                 28
+	db A_BUTTON,           6
+	db 0,                  3
+	db D_LEFT,             2
+	db 0,                 14
+	db D_LEFT,             3
+	db 0,                  4
+	db D_LEFT,             2
+	db 0,                  3
+	db D_LEFT,             5
+	db 0,                 13
+	db D_DOWN,            33
+	db 0,                 19
+	db A_BUTTON,           7
+	db 0,                  5
+	db A_BUTTON,           6
+	db 0,                  4
+	db A_BUTTON,           5
+	db 0,                  6
+	db D_LEFT,             3
+	db 0,                  5
+	db D_LEFT,             2
+	db 0,                 28
+	db D_LEFT,             3
+	db 0,                 14
+	db D_DOWN,            18
+	db 0,                 12
+	db D_RIGHT,            4
+	db 0,                  2
+	db A_BUTTON,           8
+	db 0,                 16
+	db A_BUTTON,           8
+	db 0,                 30
+	db D_DOWN,            25
+	db 0,                 16
+	db D_RIGHT,            3
+	db 0,                  4
+	db D_RIGHT,            5
+	db 0,                 36
+	db D_DOWN,            28
+	db 0,                  5
+	db A_BUTTON,           5
+	db 0,                 17
+	db D_LEFT,             3
+	db 0,                 18
+	db D_DOWN,            32
+	db 0,                 10
+	db D_RIGHT,            1
+	db A_BUTTON + D_RIGHT, 6
+	db A_BUTTON,           0
+	db 0,                  4
+	db D_RIGHT,            4
+	db 0,                  4
+	db D_RIGHT,            3
+	db 0,                  2
+	db D_RIGHT,           25
+	db 0,                  4
+	db D_RIGHT,            7
+	db 0,                 10
+	db 0,                  0
+	db 0,                  0
+	db 0,                  0
+
+DemoDataTypeB::
+	db 0,                 77
+	db D_LEFT,             8
+	db A_BUTTON + D_LEFT,  6
+	db D_LEFT,            11
+	db 0,                  7
+	db D_LEFT,             6
+	db 0,                 100
+	db D_RIGHT,            0
+	db A_BUTTON + D_RIGHT, 6
+	db D_RIGHT,            5
+	db 0,                 47
+	db D_DOWN,            22
+	db 0,                 23
+	db D_LEFT,             5
+	db 0,                  6
+	db D_LEFT,             6
+	db 0,                 16
+	db D_DOWN,            24
+	db 0,                 52
+	db A_BUTTON,           5
+	db 0,                  1
+	db D_RIGHT,           14
+	db A_BUTTON + D_RIGHT, 6
+	db D_RIGHT,           32
+	db 0,                 10
+	db D_DOWN,            10
+	db 0,                 43
+	db D_LEFT,             6
+	db 0,                  6
+	db D_LEFT,             5
+	db 0,                  5
+	db D_LEFT,             6
+	db 0,                 10
+	db D_DOWN,            12
+	db 0,                 10
+	db A_BUTTON,           7
+	db 0,                  2
+	db D_RIGHT,           11
+	db 0,                  5
+	db D_RIGHT,            4
+	db 0,                 13
+	db D_DOWN,            28
+	db 0,                 117
+	db A_BUTTON,           6
+	db 0,                 14
+	db D_DOWN,            31
+	db 0,                 26
+	db A_BUTTON,           6
+	db 0,                  0
+	db D_RIGHT,            7
+	db 0,                  5
+	db D_RIGHT,            6
+	db 0,                  4
+	db D_RIGHT,            8
+	db 0,                  3
+	db D_RIGHT,            8
+	db 0,                 12
+	db D_DOWN,            15
+	db 0,                 10
+	db A_BUTTON,           7
+	db 0,                  0
+	db D_RIGHT,           61
+	db 0,                  5
+	db D_DOWN,            31
+REPT 16
+	db 0,                  0
+ENDR
+
+INCBIN "baserom.gb", $64d0, $6552 - $64d0
