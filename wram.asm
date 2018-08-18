@@ -6,13 +6,36 @@ wOAMBuffer_NextPiece:: ds 16
 wOAMBuffer_End::
 
 wScore:: ds 3
-wUnk1:: ds 9
-wUnk2:: ds 20
+wClearedLinesList:: ds 8
+
+	db
+
 wTypeBScoring::
+wTypeBScoring_SingleCount:: db
+
+	ds 4
+
+wTypeBScoring_DoubleCount:: db
+
+	ds 4
+
+wTypeBScoring_TripleCount:: db
+
+	ds 4
+
+wTypeBScoring_TetrisCount:: db
+
+	ds 4
+
 wTypeBScoring_Drop:: dw
 
 	ds 5
-wDidntUseFastDropOnThisPiece::
+
+wDidntUseFastDropOnThisPiece:: db
+
+	ds 6
+
+wScoreDirty:: db
 
 SECTION "Sprites", WRAM0[$c200]
 ; offset 0: SPRITE_HIDDEN/SPRITE_VISIBLE
@@ -24,6 +47,10 @@ SECTION "Sprites", WRAM0[$c200]
 ; offset 6: flags
 wSpriteList::
 	ds SPRITE_SIZE * 2 ; haven't seen more than 2 sprites yet
+
+SECTION "Randomness", WRAM0[$c300]
+wRandomness::
+	ds 256
 
 SECTION "Tile Map Buffer", WRAM0[$c800]
 ; not used all the time
@@ -43,13 +70,24 @@ SECTION "Audio RAM", WRAM0[$df00]
 wAudio::
 	ds $e0
 
-wPlaySFX:: db
-wCurSFX:: db
+wPlayPulseSFX:: db
+wCurPulseSFX:: db
 
 	ds 6
 
 wPlaySong:: db
 wCurSong:: db
 
-	ds $16
+	ds 6
+
+wPlayWaveSFX:: db
+wCurWaveSFX:: db
+
+	ds 6
+
+wPlayNoiseSFX:: db
+wCurNoiseSFX:: db
+
+	ds 6
+
 wAudioEnd::

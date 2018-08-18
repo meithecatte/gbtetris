@@ -41,13 +41,14 @@ VBlankInterrupt::
 	call Call_000_1f32
 	call hOAMDMA
 	call CopyHighscoresFromTilemapBuffer
-	ld a, [$c0ce]
+
+	ld a, [wScoreDirty]
 	and a
-	jr z, .unk027a
+	jr z, .score_done
 
 	ld a, [hLockdownStage]
-	cp $03
-	jr nz, .unk027a
+	cp LOCKDOWN_STAGE_3
+	jr nz, .score_done
 
 	ld hl, vBGMapA + 3 * BG_MAP_WIDTH + 13
 	call RenderScore
@@ -56,9 +57,9 @@ VBlankInterrupt::
 	ld hl, vBGMapB + 3 * BG_MAP_WIDTH + 13
 	call RenderScore
 	xor a
-	ld [$c0ce], a
+	ld [wScoreDirty], a
 
-.unk027a:
+.score_done:
 	ld hl, $ffe2
 	inc [hl]
 	xor a

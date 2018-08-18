@@ -25,7 +25,7 @@ CheckDemoEnd::
 	ret
 
 .continue_demo:
-	ld hl, hDemoLengthCounter ; Could use the [$ff00+c] addressing mode to save a byte
+	ld hl, hRandomnessPointer ; Could use the [$ff00+c] addressing mode to save a byte
 	ld a, [hDemoNumber]
 	cp DEMO_TYPE_A
 	ld b, 16

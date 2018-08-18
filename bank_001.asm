@@ -23,7 +23,7 @@ jr_001_6568:
 	jr z, jr_001_657a
 
 	xor a
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ld [wPlaySong], a
 	ld [$dff0], a
 	ld [$dff8], a
@@ -39,7 +39,7 @@ jr_001_657a:
 
 jr_001_658f:
 	xor a
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ld [wPlaySong], a
 	ld [$dff0], a
 	ld [$dff8], a
@@ -53,7 +53,7 @@ jr_001_658f:
 jr_001_65a4:
 	call MuteSound
 	xor a
-	ld [wCurSFX], a
+	ld [wCurPulseSFX], a
 	ld [$dff1], a
 	ld [$dff9], a
 	ld hl, $dfbf
@@ -120,13 +120,13 @@ Call_001_6603:
 
 
 Call_001_6609:
-	ld a, [wCurSFX]
+	ld a, [wCurPulseSFX]
 	cp $05
 	ret
 
 
 Call_001_660f:
-	ld a, [wCurSFX]
+	ld a, [wCurPulseSFX]
 	cp $07
 	ret
 
@@ -177,7 +177,7 @@ Call_001_660f:
 
 Jump_001_664e:
 	xor a
-	ld [wCurSFX], a
+	ld [wCurPulseSFX], a
 	ld [rNR10], a
 	ld a, $08
 	ld [rNR12], a
@@ -910,7 +910,7 @@ jr_001_69cc:
 
 ResetAudio::
 	xor a
-	ld [wCurSFX], a
+	ld [wCurPulseSFX], a
 	ld [wCurSong], a
 	ld [$dff1], a
 	ld [$dff9], a
@@ -938,7 +938,7 @@ MuteSound::
 	ret
 
 Call_001_6a0e:
-	ld de, wPlaySFX
+	ld de, wPlayPulseSFX
 	ld a, [de]
 	and a
 	jr z, jr_001_6a21

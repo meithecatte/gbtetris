@@ -40,8 +40,8 @@ GenericEmptyRoutine2::
 
 ; de = sprite list pointer + SPRITE_OFFSET_Y
 UpdateMusicCursor::
-	ld a, SFX_CURSOR_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CURSOR_BEEP
+	ld [wPlayPulseSFX], a
 
 UpdateMusicCursor_NoSFX::
 	ld a, [hMusicType]
@@ -194,8 +194,8 @@ HandleModeSelect::
 .update_cursor:
 	ld [hl], a
 	push af ; write to [de] sooner so you don't have to save this
-	ld a, SFX_CURSOR_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CURSOR_BEEP
+	ld [wPlayPulseSFX], a
 	pop af
 	ld [de], a ; X coord
 	inc de
@@ -209,8 +209,8 @@ HandleModeSelect::
 	ret
 
 .pressed_start:
-	ld a, SFX_CONFIRM_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CONFIRM_BEEP
+	ld [wPlayPulseSFX], a
 	ld a, [hGameType]
 	cp GAME_TYPE_A
 	ld a, STATE_LOAD_TYPE_A_MENU
@@ -519,8 +519,8 @@ TypeBMenuHighCursorPositions::
 
 UpdateDigitCursor:
 	push af
-	ld a, SFX_CURSOR_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CURSOR_BEEP
+	ld [wPlayPulseSFX], a
 	pop af
 
 UpdateDigitCursor_NoSFX:

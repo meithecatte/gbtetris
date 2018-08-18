@@ -468,7 +468,7 @@ StartDemo::
 	ld [hTypeALevel], a
 	xor a
 	ld [hMultiplayer], a
-	ld [hDemoLengthCounter], a
+	ld [hRandomnessPointer], a
 	ld [hLastDemoInput], a
 	ld [hCountdownTillNextDemoInput], a
 	ld a, HIGH(DemoDataTypeA)
@@ -491,7 +491,7 @@ StartDemo::
 	ld a, LOW(DemoDataTypeB)
 	ld [hDemoPtrLo], a ; this is set to the same value above...
 	ld a, 17
-	ld [hDemoLengthCounter], a
+	ld [hRandomnessPointer], a
 	ld a, DEMO_TYPE_B
 
 .got_params:
@@ -1020,7 +1020,7 @@ jr_000_0843:
 jr_000_0848:
 	ld [hl], a
 	ld a, $01
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 
 jr_000_084e:
 	call Call_000_087b
@@ -1402,7 +1402,7 @@ jr_000_0a53:
 	ld a, h
 	ld [$ff00+$af], a
 	ld a, l
-	ld [hDemoLengthCounter], a
+	ld [hRandomnessPointer], a
 	ret
 
 
@@ -1577,7 +1577,7 @@ Call_000_0b10:
 
 .break_inner:
 	ld d, a
-	ld a, [$ff00+$ae]
+	ld a, [hNextNextPiece]
 	ld e, a
 	dec h
 	jr z, .break_outer
@@ -1590,7 +1590,7 @@ Call_000_0b10:
 
 .break_outer:
 	ld a, d
-	ld [$ff00+$ae], a
+	ld [hNextNextPiece], a
 	ld a, e
 	ld [hHighscorePtrLo], a
 	pop bc
@@ -1683,8 +1683,8 @@ HandleState26::
 	call Call_000_1ce3
 	call HandleGameplayMovement
 	call HandleGravity
-	call Call_000_2199
-	call Call_000_25f5
+	call LookForFullLines
+	call HandleLockdownTransferToTilemap
 	call Call_000_22ad
 	call Call_000_0bff
 	ld a, [$ff00+$d5]
@@ -2224,7 +2224,7 @@ jr_000_0e67:
 	inc l
 	ld [hl], $57
 	ld a, $06
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ret
 
 
@@ -2408,7 +2408,7 @@ jr_000_0f57:
 	inc l
 	ld [hl], $56
 	ld a, $06
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ret
 
 
@@ -3126,7 +3126,7 @@ HandleState44::
 	pop hl
 	inc hl
 	ld a, $02
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ld a, h
 	ld [hHighscoreNamePtrHi], a
 	ld a, l
@@ -3518,9 +3518,9 @@ jr_000_1af5:
 
 jr_000_1afe:
 	call Call_000_1b43
-	call Call_000_2062
-	call Call_000_2062
-	call Call_000_2062
+	call SpawnNewTetromino
+	call SpawnNewTetromino
+	call SpawnNewTetromino
 IF DEF(INTERNATIONAL)
 	ld a, [$c0de]
 	and a
@@ -3809,8 +3809,8 @@ HandleGameplay::
 	call HandleDemoRecording
 	call HandleGameplayMovement
 	call HandleGravity
-	call Call_000_2199
-	call Call_000_25f5
+	call LookForFullLines
+	call HandleLockdownTransferToTilemap
 	call Call_000_22ad
 	call Call_000_1fec
 	call RestoreInputsAfterDemoFrame
@@ -4341,7 +4341,7 @@ jr_000_1ef0:
 	ld hl, $9a25
 	call Call_000_2a82
 	ld a, $02
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ret
 
 
@@ -4475,11 +4475,12 @@ Copy8TilesWide::
 
 
 Call_000_1fec:
-	ld a, [$ff00+$c0]
-	cp $37
+	ld a, [hGameType]
+	cp GAME_TYPE_A
 	ret nz
 
 	ld a, [hGameState]
+	assert STATE_GAMEPLAY == 0
 	and a
 	ret nz
 
@@ -4576,93 +4577,91 @@ jr_000_2059:
 	ret
 
 
-Call_000_2062:
-	ld hl, $c200
-	ld [hl], $00
+SpawnNewTetromino::
+	ld hl, wSpriteList sprite 0
+	ld [hl], SPRITE_VISIBLE
 	inc l
-	ld [hl], $18
+	ld [hl], INITIAL_TETROMINO_Y
 	inc l
-	ld [hl], $3f
+	ld [hl], INITIAL_TETROMINO_X
 	inc l
-	ld a, [$c213]
+	ld a, [wSpriteList sprite 1 + SPRITE_OFFSET_ID]
 	ld [hl], a
-	and $fc
+	and $ff ^ SPRITE_ID_ROTATION_MASK
 	ld c, a
 	ld a, [hDemoNumber]
 	and a
-	jr nz, jr_000_207f
+	jr nz, .predefined
 
 	ld a, [hMultiplayer]
 	and a
-	jr z, jr_000_209c
+	jr z, .random
 
-jr_000_207f:
-	ld h, $c3
-	ld a, [hDemoLengthCounter]
+.predefined:
+	ld h, HIGH(wRandomness)
+	ld a, [hRandomnessPointer]
 	ld l, a
 	ld e, [hl]
 	inc hl
 	ld a, h
-	cp $c4
-	jr nz, jr_000_208e
-
-	ld hl, $c300
-
-jr_000_208e:
+	cp HIGH(wRandomness) + 1
+	jr nz, .save_pointer
+	ld hl, wRandomness ; could just set l to 0, then move the ld a, l to before the jump and make this a xor a
+.save_pointer:
 	ld a, l
-	ld [hDemoLengthCounter], a
+	ld [hRandomnessPointer], a
 	ld a, [$ff00+$d3]
 	and a
-	jr z, jr_000_20c0
+	jr z, .end
 
 	or $80
 	ld [$ff00+$d3], a
-	jr jr_000_20c0
+	jr .end
 
-jr_000_209c:
-	ld h, $03
+.random:
+	ld h, 3
 
-jr_000_209e:
+.try_again:
 	ld a, [rDIV]
 	ld b, a
 
-jr_000_20a1:
+.back_to_zero:
 	xor a
 
-jr_000_20a2:
+.division_loop:
 	dec b
-	jr z, jr_000_20af
+	jr z, .try_next_next_piece
 
+	inc a ; just add 4 !
 	inc a
 	inc a
 	inc a
-	inc a
-	cp $1c
-	jr z, jr_000_20a1
+	cp SPRITE_TYPE_A ; first sprite that's not a tetromino
+	jr z, .back_to_zero
 
-	jr jr_000_20a2
+	jr .division_loop
 
-jr_000_20af:
+.try_next_next_piece:
 	ld d, a
-	ld a, [$ff00+$ae]
+	ld a, [hNextNextPiece]
 	ld e, a
 	dec h
-	jr z, jr_000_20bd
+	jr z, .got_next_next_piece
 
 	or d
 	or c
-	and $fc
+	and $ff ^ SPRITE_ID_ROTATION_MASK
 	cp c
-	jr z, jr_000_209e
+	jr z, .try_again
 
-jr_000_20bd:
+.got_next_next_piece:
 	ld a, d
-	ld [$ff00+$ae], a
+	ld [hNextNextPiece], a
 
-jr_000_20c0:
+.end:
 	ld a, e
-	ld [$c213], a
-	call UpdateNextTetromino
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_ID], a
+	call UpdateNextTetromino ; could do it after the hGravityCounter copy and TCO
 	ld a, [hFallingSpeed]
 	ld [hGravityCounter], a
 	ret
@@ -4700,7 +4699,7 @@ Gameplay_HoldingDown:
 	inc [hl]
 	jr HandleGravity.apply_gravity
 
-HandleGravity:
+HandleGravity::
 	ld a, [hKeysHeld]
 	and D_DOWN | D_LEFT | D_RIGHT
 	cp D_DOWN
@@ -4720,7 +4719,7 @@ HandleGravity:
 
 .timing_ok:
 	ld a, [hLockdownStage]
-	cp 3
+	cp LOCKDOWN_STAGE_3
 	ret z
 
 	ld a, [hRowToMove]
@@ -4746,7 +4745,7 @@ HandleGravity:
 	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_Y
 	ld [hl], a
 	call UpdateCurrentTetromino
-	ld a, 1
+	ld a, LOCKDOWN_STAGE_TRANSFER_TO_TILEMAP
 	ld [hLockdownStage], a
 	ld [wDidntUseFastDropOnThisPiece], a
 	ld a, [hFastDropDistance]
@@ -4796,8 +4795,8 @@ HandleGravity:
 	call JumpResetAudio
 	ld a, STATE_GAME_OVER
 	ld [hGameState], a
-	ld a, $02
-	ld [$dff0], a
+	ld a, WAVESFX_GAME_OVER
+	ld [wPlayWaveSFX], a
 	ret
 
 .no_game_over_yet:
@@ -4824,148 +4823,152 @@ HandleGravity:
 	ld [$c0ce], a
 	jr .scoring_applied
 
-Call_000_2199:
+LookForFullLines::
 	ld a, [hLockdownStage]
-	cp 2
+	cp LOCKDOWN_STAGE_LOOK_FOR_FULL_LINES
 	ret nz
 
-	ld a, $02
-	ld [$dff8], a
+	ld a, NOISESFX_LOCKDOWN
+	ld [wPlayNoiseSFX], a
 	xor a
 	ld [hBuffer], a
-	ld de, $c0a3
-	ld hl, $c842
-	ld b, $10
+	ld de, wClearedLinesList
+	ld hl, wTileMap + 2 * BG_MAP_WIDTH + 2 ; TODO: why row 2 instead of 0?
+	ld b, SCREEN_HEIGHT - 2
 
-jr_000_21ae:
-	ld c, $0a
+.row_loop:
+	ld c, PLAYFIELD_WIDTH
+
 	push hl
-
-jr_000_21b1:
+.inner_loop:
 	ld a, [hl+]
-	cp $2f
-	jp z, Jump_000_2238
-
+	cp " "
+	jp z, .row_not_full
 	dec c
-	jr nz, jr_000_21b1
-
+	jr nz, .inner_loop
 	pop hl
+
 	ld a, h
 	ld [de], a
 	inc de
+
 	ld a, l
 	ld [de], a
 	inc de
+
 	ld a, [hBuffer]
 	inc a
 	ld [hBuffer], a
 
-jr_000_21c6:
+.next_row:
 	push de
 	ld de, BG_MAP_WIDTH
 	add hl, de
 	pop de
 	dec b
-	jr nz, jr_000_21ae
+	jr nz, .row_loop
 
-	ld a, $03
+	ld a, LOCKDOWN_STAGE_3
 	ld [hLockdownStage], a
+	assert LOCKDOWN_STAGE_3 == 3
 	dec a
 	ld [hDelayCounter], a
 	ld a, [hBuffer]
 	and a
 	ret z
 
+	; found full lines
 	ld b, a
-	ld hl, $ff9e
-	ld a, [$ff00+$c0]
-	cp $77
-	jr z, jr_000_21fb
+	ld hl, hLineCount
+	ld a, [hGameType]
+	cp GAME_TYPE_B
+	jr z, .type_b
 
 IF !DEF(INTERNATIONAL)
 	ld a, [$ff00+$e7]
 	add b
 	ld [$ff00+$e7], a
 ENDC
+
 	ld a, b
 	add [hl]
 	daa
 	ld [hl+], a
-	ld a, $00
+	ld a, 0
 	adc [hl]
 	daa
 	ld [hl], a
-	jr nc, jr_000_220a
+	jr nc, .line_count_done
 
 	ld [hl], $99
 	dec hl
 	ld [hl], $99
-	jr jr_000_220a
+	jr .line_count_done
 
-jr_000_21fb:
+.type_b:
 	ld a, [hl]
 	or a
 	sub b
-	jr z, jr_000_223b
+	jr z, .zero_cap
 
-	jr c, jr_000_223b
+	jr c, .zero_cap
 
 	daa
 	ld [hl], a
 	and $f0
 	cp $90
-	jr z, jr_000_223b
+	jr z, .zero_cap
 
-jr_000_220a:
+.line_count_done:
 	ld a, b
-	ld c, $06
-	ld hl, $c0ac
-	ld b, $00
-	cp $01
-	jr z, jr_000_222f
+	ld c, PULSESFX_LINE_CLEAR
+	ld hl, wTypeBScoring_SingleCount
+	ld b, 0 ; could just dec b and remove all the loads below (apart from the tetris one)
+	cp 1
+	jr z, .end
 
-	ld hl, $c0b1
-	ld b, $01
-	cp $02
-	jr z, jr_000_222f
+	ld hl, wTypeBScoring_DoubleCount
+	ld b, 1
+	cp 2
+	jr z, .end
 
-	ld hl, $c0b6
-	ld b, $02
-	cp $03
-	jr z, jr_000_222f
+	ld hl, wTypeBScoring_TripleCount
+	ld b, 2
+	cp 3
+	jr z, .end
 
-	ld hl, $c0bb
-	ld b, $04
-	ld c, $07
+	ld hl, wTypeBScoring_TetrisCount
+	ld b, 4
+	ld c, PULSESFX_TETRIS
 
-jr_000_222f:
+.end:
 	inc [hl]
 	ld a, b
-	ld [$ff00+$dc], a
+	ld [$ff00+$dc], a ; TODO
 	ld a, c
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ret
 
 
-Jump_000_2238:
+.row_not_full:
 	pop hl
-	jr jr_000_21c6
+	jr .next_row
 
-jr_000_223b:
+.zero_cap:
 	xor a
-	ld [$ff00+$9e], a
-	jr jr_000_220a
+	ld [hLineCount], a
+	jr .line_count_done
 
 Call_000_2240:
 	ld a, [hLockdownStage]
-	cp $03
+	cp LOCKDOWN_STAGE_3
 	ret nz
 
 	ld a, [hDelayCounter]
 	and a
 	ret nz
 
-	ld de, $c0a3
+	ld de, wClearedLinesList
 	ld a, [$ff00+$9c]
 	bit 0, a
 	jr nz, .unk3
@@ -5007,15 +5010,14 @@ Call_000_2240:
 	cp $07
 	jr z, .unk1
 
-	ld a, $0a
+	ld a, 10
 	ld [hDelayCounter], a
 	ret
-
 
 .unk1:
 	xor a
 	ld [$ff00+$9c], a
-	ld a, $0d
+	ld a, 13
 	ld [hDelayCounter], a
 	ld a, $01
 	ld [hRowToMove], a
@@ -5024,7 +5026,6 @@ Call_000_2240:
 	xor a
 	ld [hLockdownStage], a
 	ret
-
 
 .unk3:
 	ld a, [de]
@@ -5054,7 +5055,7 @@ Call_000_2240:
 	jr .loop2
 
 .unk5:
-	call Call_000_2062
+	call SpawnNewTetromino
 	jr .unk2
 
 Call_000_22ad:
@@ -5122,7 +5123,7 @@ jr_000_22e7:
 
 
 Call_000_22f3: ; TODO
-	ld hl, wUnk1
+	ld hl, wClearedLinesList
 	xor a
 	ld b, 9
 .loop:
@@ -5229,7 +5230,7 @@ jr_000_2375:
 	jr z, jr_000_236f
 
 	ld a, $05
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ret
 
 
@@ -5414,7 +5415,7 @@ Call_000_242c:
 
 
 .unk248b:
-	call Call_000_2062
+	call SpawnNewTetromino
 	ret
 
 
@@ -5513,7 +5514,7 @@ jr_000_24de:
 
 jr_000_24f4:
 	ld a, $02
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	call Call_000_1b43
 	ret
 
@@ -5593,12 +5594,12 @@ ENDC
 
 .wrap_left_rotation:
 	ld a, [hl]
-	and $fc
+	and $ff ^ SPRITE_ID_ROTATION_MASK
 	ld [hl], a
 
 .did_rotation:
-	ld a, SFX_ROTATE
-	ld [wPlaySFX], a
+	ld a, PULSESFX_ROTATE
+	ld [wPlayPulseSFX], a
 	call UpdateCurrentTetromino
 	call CheckCollision
 	and a
@@ -5606,7 +5607,7 @@ ENDC
 
 	; cancel rotation, we've got a collision
 	xor a
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_ID
 	ld a, [hBuffer]
 	ld [hl], a ; you'd be better off specifying the address directly
@@ -5637,8 +5638,8 @@ ENDC
 	add 8
 	ld [hl], a
 	call UpdateCurrentTetromino
-	ld a, SFX_MOVE_PIECE
-	ld [wPlaySFX], a
+	ld a, PULSESFX_MOVE_PIECE
+	ld [wPlayPulseSFX], a
 	call CheckCollision
 	and a
 	ret z
@@ -5646,7 +5647,7 @@ ENDC
 .cancel_movement:
 	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_X
 	xor a
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	ld a, [hBuffer]
 	ld [hl], a
 	call UpdateCurrentTetromino
@@ -5676,8 +5677,8 @@ ENDC
 	ld a, [hl]
 	sub 8
 	ld [hl], a
-	ld a, SFX_MOVE_PIECE
-	ld [wPlaySFX], a
+	ld a, PULSESFX_MOVE_PIECE
+	ld [wPlayPulseSFX], a
 	call UpdateCurrentTetromino
 	call CheckCollision
 	and a
@@ -5729,20 +5730,20 @@ CheckCollision::
 	ld [hCollisionOccured_NeverRead], a
 	ret
 
-Call_000_25f5:
+HandleLockdownTransferToTilemap:
 	ld a, [hLockdownStage]
-	cp 1
+	cp LOCKDOWN_STAGE_TRANSFER_TO_TILEMAP
 	ret nz
 
 	ld hl, wOAMBuffer_CurrentPiece
-	ld b, $04
+	ld b, 4
 
-jr_000_25ff:
-	ld a, [hl+]
+.loop:
+	ld a, [hl+] ; y
 	ld [hCoordConversionY], a
-	ld a, [hl+]
+	ld a, [hl+] ; x
 	and a
-	jr z, jr_000_2623
+	jr z, .end
 
 	ld [hCoordConversionX], a
 	push hl
@@ -5753,27 +5754,30 @@ jr_000_25ff:
 	pop bc
 	pop hl
 
-jr_000_2611:
+.wait_vblank:
 	ld a, [rSTAT]
-	and $03
-	jr nz, jr_000_2611
+	and STATF_MODE
+	jr nz, .wait_vblank
 
-	ld a, [hl]
+	ld a, [hl] ; tile
 	ld [de], a
+
 	ld a, d
-	add $30
+	add HIGH(wTileMap - vBGMapA)
 	ld d, a
+
 	ld a, [hl+]
 	ld [de], a
+
 	inc l
 	dec b
-	jr nz, jr_000_25ff
+	jr nz, .loop
 
-jr_000_2623:
-	ld a, $02
+.end:
+	ld a, LOCKDOWN_STAGE_LOOK_FOR_FULL_LINES
 	ld [hLockdownStage], a
-	ld hl, $c200
-	ld [hl], $80
+	ld hl, wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY
+	ld [hl], SPRITE_HIDDEN
 	ret
 
 
@@ -5847,7 +5851,7 @@ jr_000_267a:
 	ld hl, $9a25
 	call Call_000_2a82
 	ld a, $02
-	ld [wPlaySFX], a
+	ld [wPlayPulseSFX], a
 	xor a
 	ld [$c0c6], a
 	ret
@@ -5872,7 +5876,7 @@ Jump_000_268e:
 	ret
 
 ResetGameplayVariablesMaybe:: ; TODO
-	ld hl, wUnk2
+	ld hl, wTypeBScoring
 	ld b, 27
 	xor a
 

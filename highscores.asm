@@ -481,8 +481,8 @@ HandleHighscoreEnterName::
 
 .write_letter_back:
 	ld [de], a
-	ld a, SFX_CURSOR_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CURSOR_BEEP
+	ld [wPlayPulseSFX], a
 	ret
 
 .not_up_cap:
@@ -528,8 +528,8 @@ HandleHighscoreEnterName::
 .pressed_a:
 	ld a, [de]
 	call WriteAInHBlank
-	ld a, SFX_CONFIRM_BEEP
-	ld [wPlaySFX], a
+	ld a, PULSESFX_CONFIRM_BEEP
+	ld [wPlayPulseSFX], a
 
 	ld a, [hHighscoreLettersEntered]
 	inc a

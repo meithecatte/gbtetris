@@ -33,6 +33,8 @@ hCollisionOccured_NeverRead EQU $ff9b
 
 hHighscoreBlink  EQU $ff9c
 
+hLineCount EQU $ff9e
+
 hBuffer               EQU $ffa0
 hSavedIE              EQU $ffa1
 hDelayCounter         EQU $ffa6
@@ -42,7 +44,9 @@ hLevel EQU $ffa9
 
 hAutoFireCountdown EQU $ffaa
 
-hDemoLengthCounter EQU $ffb0
+hNextNextPiece     EQU $ffae
+
+hRandomnessPointer EQU $ffb0
 
 hCoordConversionY  EQU $ffb2
 hCoordConversionX  EQU $ffb3
