@@ -38,7 +38,7 @@ VBlankInterrupt::
 	call Call_000_231c
 	call Call_000_230d
 	call Call_000_22fe
-	call Call_000_1f32
+	call VBlank_TypeBScoringScreen
 	call hOAMDMA
 	call VBlank_HighscoreTilemap
 

@@ -61,12 +61,12 @@ LoadTitlescreen::
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
 	ld [hHighscoreEnterName], a
-	call Call_000_22f3
+	call ClearedLinesListReset
 	call ResetGameplayVariablesMaybe
 	call LoadTitlescreenTileset
 

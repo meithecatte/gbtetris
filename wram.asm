@@ -29,8 +29,12 @@ wTypeBScoring_TetrisCount:: db
 
 wTypeBScoring_Drop:: dw
 
-	ds 5
+	ds 3
 
+wTypeBScoring_DisplayStage:: db
+wTypeBScoring_DoTick:: db
+
+wTypeBScoring_End::
 wDidntUseFastDropOnThisPiece:: db
 
 	ds 6

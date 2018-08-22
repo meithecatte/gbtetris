@@ -28,9 +28,9 @@ CheckDemoEnd::
 	ld hl, hRandomnessPtrLo ; Could use the [$ff00+c] addressing mode to save a byte
 	ld a, [hDemoNumber]
 	cp DEMO_TYPE_A
-	ld b, 16
+	ld b, DemoRandomnessTypeAEnd - DemoRandomness
 	jr z, .got_demo_length
-	ld b, 29
+	ld b, DemoRandomnessTypeBEnd - DemoRandomness
 .got_demo_length:
 	ld a, [hl]
 	cp b

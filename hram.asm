@@ -79,7 +79,7 @@ hRecvBuffer      EQU $ffd0
 hSeenNonZero EQU $ffe0
 
 hGameState        EQU $ffe1
-hRowToMove        EQU $ffe3
+hLineClearStage        EQU $ffe3
 hDemoNumber       EQU $ffe4
 hFastDropDistance EQU $ffe5
 

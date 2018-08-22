@@ -24,7 +24,7 @@ LoadMultiplayerMusicSelect::
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	call JumpResetAudio
 	ld a, STATE_43
 	ld [hGameState], a
@@ -162,7 +162,7 @@ jr_000_0703:
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 
 jr_000_072c:
 	ld [hSerialDone], a
@@ -460,12 +460,12 @@ Jump_000_0895:
 	ld [hSendBuffer], a
 	ld [$ff00+$d1], a
 	call ResetGameplayVariablesMaybe
-	call Call_000_22f3
+	call ClearedLinesListReset
 	call Call_000_204d
 	xor a
 
 jr_000_08b9:
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -747,7 +747,7 @@ Jump_000_0a35:
 	ld a, $1c
 	ld [hGameState], a
 	ld a, $02
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ld a, $03
 	ld [hSerialState], a
 	ld a, [hMasterSlave]
@@ -964,7 +964,7 @@ Call_000_0b10:
 HandleState28::
 	ld a, IEF_VBLANK
 	ld [rIE], a
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	and a
 	jr nz, jr_000_0b66
 
@@ -1049,7 +1049,7 @@ HandleState26::
 	call HandleGravity
 	call LookForFullLines
 	call HandleLockdownTransferToTilemap
-	call Call_000_22ad
+	call HandleRowShift
 	call Call_000_0bff
 	ld a, [$ff00+$d5]
 	and a
@@ -1291,3 +1291,239 @@ jr_000_0ce6:
 
 	ld [$ff00+$d2], a
 	jr jr_000_0c9e
+
+Call_000_0cf0:
+	ld a, [$ff00+$d3]
+	and a
+	jr z, jr_000_0cfc
+
+	bit 7, a
+	ret z
+
+	and $07
+	jr jr_000_0d06
+
+jr_000_0cfc:
+	ld a, [$ff00+$d2]
+	and a
+	ret z
+
+	ld [$ff00+$d3], a
+	xor a
+	ld [$ff00+$d2], a
+	ret
+
+jr_000_0d06:
+	ld c, a
+	push bc
+	ld hl, $c822
+	ld de, $ffe0
+
+jr_000_0d0e:
+	add hl, de
+	dec c
+	jr nz, jr_000_0d0e
+
+	ld de, $c822
+	ld c, $11
+
+jr_000_0d17:
+	ld b, $0a
+
+jr_000_0d19:
+	ld a, [de]
+	ld [hl+], a
+	inc e
+	dec b
+	jr nz, jr_000_0d19
+
+	push de
+	ld de, $0016
+	add hl, de
+	pop de
+	push hl
+	ld hl, $0016
+	add hl, de
+	push hl
+	pop de
+	pop hl
+	dec c
+	jr nz, jr_000_0d17
+
+	pop bc
+
+jr_000_0d31:
+	ld de, $c400
+	ld b, $0a
+
+jr_000_0d36:
+	ld a, [de]
+	ld [hl+], a
+	inc de
+	dec b
+	jr nz, jr_000_0d36
+
+	push de
+	ld de, $0016
+	add hl, de
+	pop de
+	dec c
+	jr nz, jr_000_0d31
+
+	ld a, $02
+	ld [hLineClearStage], a
+	ld [$ff00+$d4], a
+	xor a
+	ld [$ff00+$d3], a
+	ret
+
+HandleState27::
+	ld a, [hDelayCounter]
+	and a
+	ret nz
+
+	ld a, $01
+	ld [rIE], a
+	ld a, $03
+	ld [hSerialState], a
+	ld a, [$ff00+$d1]
+	cp $77
+	jr nz, jr_000_0d6d
+
+	ld a, [hRecvBuffer]
+	cp $aa
+	jr nz, jr_000_0d77
+
+jr_000_0d67:
+	ld a, $01
+	ld [$ff00+$ef], a
+	jr jr_000_0d77
+
+jr_000_0d6d:
+	cp $aa
+	jr nz, jr_000_0d77
+
+	ld a, [hRecvBuffer]
+	cp $77
+	jr z, jr_000_0d67
+
+jr_000_0d77:
+	ld b, $34
+	ld c, $43
+	call Call_000_11a3
+	xor a
+	ld [hLineClearStage], a
+	ld a, [$ff00+$d1]
+	cp $aa
+	ld a, $1e
+	jr nz, jr_000_0d8b
+
+	ld a, $1d
+
+jr_000_0d8b:
+	ld [hGameState], a
+	ld a, $28
+	ld [hDelayCounter], a
+	ld a, $1d
+	ld [hDemoCountdown], a
+	ret
+
+HandleState29::
+	ld a, [hDelayCounter]
+	and a
+	ret nz
+
+	ld a, [$ff00+$ef]
+	and a
+	jr nz, jr_000_0da4
+
+	ld a, [$ff00+$d7]
+	inc a
+	ld [$ff00+$d7], a
+
+jr_000_0da4:
+	call Call_000_0fd3
+	ld de, $274d
+	ld a, [hMasterSlave]
+	cp $29
+	jr z, jr_000_0db3
+
+	ld de, $275f
+
+jr_000_0db3:
+	ld hl, $c200
+	ld c, 3
+	call LoadSprites
+	ld a, $19
+	ld [hDelayCounter], a
+	ld a, [$ff00+$ef]
+	and a
+	jr z, jr_000_0dc9
+
+	ld hl, $c220
+	ld [hl], $80
+
+jr_000_0dc9:
+	ld a, $03
+	call UpdateNSprites
+	ld a, $20
+	ld [hGameState], a
+	ld a, $09
+	ld [wPlaySong], a
+	ld a, [$ff00+$d7]
+	cp $05
+	ret nz
+
+	ld a, $11
+	ld [wPlaySong], a
+	ret
+
+
+jr_000_0de2:
+	ld a, [$ff00+$d7]
+	cp $05
+	jr nz, jr_000_0def
+
+	ld a, [hDemoCountdown]
+	and a
+	jr z, jr_000_0df5
+
+	jr jr_000_0e11
+
+jr_000_0def:
+	ld a, [hKeysPressed]
+	bit 3, a
+	jr z, jr_000_0e11
+
+jr_000_0df5:
+	ld a, $60
+	ld [hSendBuffer], a
+	ld [hSendBufferValid], a
+	jr jr_000_0e1a
+
+HandleState32::
+	ld a, $01
+	ld [rIE], a
+	ld a, [hSerialDone]
+	jr z, jr_000_0e11
+
+	ld a, [hMasterSlave]
+	cp $29
+	jr z, jr_000_0de2
+
+	ld a, [hRecvBuffer]
+	cp $60
+	jr z, jr_000_0e1a
+
+jr_000_0e11:
+	call Call_000_0e21
+	ld a, $03
+	call UpdateNSprites
+	ret
+
+
+jr_000_0e1a:
+	ld a, $1f
+	ld [hGameState], a
+	ld [hSerialDone], a
+	ret

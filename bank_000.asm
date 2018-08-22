@@ -114,244 +114,6 @@ INCLUDE "titlescreen.asm"
 INCLUDE "demo.asm"
 INCLUDE "multiplayer.asm"
 
-Call_000_0cf0:
-	ld a, [$ff00+$d3]
-	and a
-	jr z, jr_000_0cfc
-
-	bit 7, a
-	ret z
-
-	and $07
-	jr jr_000_0d06
-
-jr_000_0cfc:
-	ld a, [$ff00+$d2]
-	and a
-	ret z
-
-	ld [$ff00+$d3], a
-	xor a
-	ld [$ff00+$d2], a
-	ret
-
-
-jr_000_0d06:
-	ld c, a
-	push bc
-	ld hl, $c822
-	ld de, $ffe0
-
-jr_000_0d0e:
-	add hl, de
-	dec c
-	jr nz, jr_000_0d0e
-
-	ld de, $c822
-	ld c, $11
-
-jr_000_0d17:
-	ld b, $0a
-
-jr_000_0d19:
-	ld a, [de]
-	ld [hl+], a
-	inc e
-	dec b
-	jr nz, jr_000_0d19
-
-	push de
-	ld de, $0016
-	add hl, de
-	pop de
-	push hl
-	ld hl, $0016
-	add hl, de
-	push hl
-	pop de
-	pop hl
-	dec c
-	jr nz, jr_000_0d17
-
-	pop bc
-
-jr_000_0d31:
-	ld de, $c400
-	ld b, $0a
-
-jr_000_0d36:
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	dec b
-	jr nz, jr_000_0d36
-
-	push de
-	ld de, $0016
-	add hl, de
-	pop de
-	dec c
-	jr nz, jr_000_0d31
-
-	ld a, $02
-	ld [hRowToMove], a
-	ld [$ff00+$d4], a
-	xor a
-	ld [$ff00+$d3], a
-	ret
-
-HandleState27::
-	ld a, [hDelayCounter]
-	and a
-	ret nz
-
-	ld a, $01
-	ld [rIE], a
-	ld a, $03
-	ld [hSerialState], a
-	ld a, [$ff00+$d1]
-	cp $77
-	jr nz, jr_000_0d6d
-
-	ld a, [hRecvBuffer]
-	cp $aa
-	jr nz, jr_000_0d77
-
-jr_000_0d67:
-	ld a, $01
-	ld [$ff00+$ef], a
-	jr jr_000_0d77
-
-jr_000_0d6d:
-	cp $aa
-	jr nz, jr_000_0d77
-
-	ld a, [hRecvBuffer]
-	cp $77
-	jr z, jr_000_0d67
-
-jr_000_0d77:
-	ld b, $34
-	ld c, $43
-	call Call_000_11a3
-	xor a
-	ld [hRowToMove], a
-	ld a, [$ff00+$d1]
-	cp $aa
-	ld a, $1e
-	jr nz, jr_000_0d8b
-
-	ld a, $1d
-
-jr_000_0d8b:
-	ld [hGameState], a
-	ld a, $28
-	ld [hDelayCounter], a
-	ld a, $1d
-	ld [hDemoCountdown], a
-	ret
-
-HandleState29::
-	ld a, [hDelayCounter]
-	and a
-	ret nz
-
-	ld a, [$ff00+$ef]
-	and a
-	jr nz, jr_000_0da4
-
-	ld a, [$ff00+$d7]
-	inc a
-	ld [$ff00+$d7], a
-
-jr_000_0da4:
-	call Call_000_0fd3
-	ld de, $274d
-	ld a, [hMasterSlave]
-	cp $29
-	jr z, jr_000_0db3
-
-	ld de, $275f
-
-jr_000_0db3:
-	ld hl, $c200
-	ld c, 3
-	call LoadSprites
-	ld a, $19
-	ld [hDelayCounter], a
-	ld a, [$ff00+$ef]
-	and a
-	jr z, jr_000_0dc9
-
-	ld hl, $c220
-	ld [hl], $80
-
-jr_000_0dc9:
-	ld a, $03
-	call UpdateNSprites
-	ld a, $20
-	ld [hGameState], a
-	ld a, $09
-	ld [wPlaySong], a
-	ld a, [$ff00+$d7]
-	cp $05
-	ret nz
-
-	ld a, $11
-	ld [wPlaySong], a
-	ret
-
-
-jr_000_0de2:
-	ld a, [$ff00+$d7]
-	cp $05
-	jr nz, jr_000_0def
-
-	ld a, [hDemoCountdown]
-	and a
-	jr z, jr_000_0df5
-
-	jr jr_000_0e11
-
-jr_000_0def:
-	ld a, [hKeysPressed]
-	bit 3, a
-	jr z, jr_000_0e11
-
-jr_000_0df5:
-	ld a, $60
-	ld [hSendBuffer], a
-	ld [hSendBufferValid], a
-	jr jr_000_0e1a
-
-HandleState32::
-	ld a, $01
-	ld [rIE], a
-	ld a, [hSerialDone]
-	jr z, jr_000_0e11
-
-	ld a, [hMasterSlave]
-	cp $29
-	jr z, jr_000_0de2
-
-	ld a, [hRecvBuffer]
-	cp $60
-	jr z, jr_000_0e1a
-
-jr_000_0e11:
-	call Call_000_0e21
-	ld a, $03
-	call UpdateNSprites
-	ret
-
-
-jr_000_0e1a:
-	ld a, $1f
-	ld [hGameState], a
-	ld [hSerialDone], a
-	ret
-
-
 Call_000_0e21:
 	ld a, [hDelayCounter]
 	and a
@@ -1179,7 +941,7 @@ jr_000_1269:
 	ld [hl], $35
 	ld a, $ff
 	ld [hDelayCounter], a
-	ld a, $2f
+	ld a, " "
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ret
 
@@ -1349,7 +1111,7 @@ HandleState45::
 
 	call DisableLCD
 	call LoadTileset
-	call Call_000_22f3
+	call ClearedLinesListReset
 	ld a, $93
 	ld [rLCDC], a
 	ld a, $05
@@ -1383,7 +1145,7 @@ HandleState46::
 	ld [hDelayCounter], a
 	ld a, $2f
 	ld [hGameState], a
-	ld a, $10
+	ld a, SONG_ENDING
 	ld [wPlaySong], a
 	ret
 
@@ -1416,7 +1178,7 @@ jr_000_13d4:
 	ld [hGameState], a
 	ld a, $80
 	ld [hDelayCounter], a
-	ld a, $2f
+	ld a, " "
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ret
 
@@ -1497,7 +1259,7 @@ HandleState51::
 	call DisableLCD
 	call LoadTileset
 	call $7ff3
-	call Call_000_22f3
+	call ClearedLinesListReset
 	ld a, $93
 	ld [rLCDC], a
 	ld a, $10
@@ -1631,12 +1393,12 @@ LoadPlayfield::
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
-	ld a, $2f
+	ld a, " "
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	call Call_000_204d
 	call ResetGameplayVariablesMaybe
 	xor a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -1722,15 +1484,14 @@ ENDC
 	cp GAME_TYPE_B
 	jr nz, jr_000_1b3b
 
-	ld a, $34
+	ld a, 52
 	ld [hGravityCounter], a
 
 	; display the "high" value on screen
 	ld a, [hTypeBHigh]
-	ld hl, vBGMapA + 5 * BG_MAP_WIDTH + 16
+	coord hl, vBGMapA, 16, 5
 	ld [hl], a
-	assert LOW(vBGMapA) == LOW(vBGMapB)
-	ld h, HIGH(vBGMapB + 5 * BG_MAP_WIDTH + 16)
+	coordh h, vBGMapB, 16, 5
 	ld [hl], a
 	and a
 	jr z, jr_000_1b3b
@@ -1997,7 +1758,7 @@ HandleGameplay::
 	call HandleGravity
 	call LookForFullLines
 	call HandleLockdownTransferToTilemap
-	call Call_000_22ad
+	call HandleRowShift
 	call Call_000_1fec
 	call RestoreInputsAfterDemoFrame
 	ret
@@ -2189,7 +1950,7 @@ HandleGameOver::
 	xor a
 	ld [hLockdownStage], a
 	ld [hBlinkCounter], a
-	call Call_000_22f3
+	call ClearedLinesListReset
 	ld a, $87
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ld a, $46
@@ -2208,7 +1969,7 @@ HandleState4::
 
 jr_000_1d6a:
 	xor a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, $16
@@ -2348,7 +2109,7 @@ HandleState34::
 	ret nz
 
 	ld hl, $c802
-	ld de, $5157
+	ld de, VictoryDanceTilemap
 	call Call_000_2858
 	call ClearOAM
 	ld hl, $c200
@@ -2526,44 +2287,43 @@ jr_000_1ef0:
 	ld de, $c0a2
 	ld hl, $9a25
 	call Call_000_2a82
-	ld a, $02
+	ld a, PULSESFX_CONFIRM_BEEP
 	ld [wPlayPulseSFX], a
 	ret
 
-
-Call_000_1f32:
-	ld a, [$c0c6]
+VBlank_TypeBScoringScreen::
+	ld a, [wTypeBScoring_DoTick]
 	and a
 	ret z
 
-	ld a, [$c0c5]
-	cp $04
+	ld a, [wTypeBScoring_DisplayStage]
+	cp 4
 	jr z, jr_000_1ef0
 
 	ld de, $0040
-	ld bc, $9823
-	ld hl, $c0ac
+	coord bc, vBGMapA, 3, 1
+	ld hl, wTypeBScoring_SingleCount
 	and a
-	jr z, jr_000_1f6d
+	jr z, .got_scoring_info
 
 	ld de, $0100
-	ld bc, $9883
-	ld hl, $c0b1
-	cp $01
-	jr z, jr_000_1f6d
+	coord bc, vBGMapA, 3, 4
+	ld hl, wTypeBScoring_DoubleCount
+	cp 1
+	jr z, .got_scoring_info
 
 	ld de, $0300
-	ld bc, $98e3
-	ld hl, $c0b6
-	cp $02
-	jr z, jr_000_1f6d
+	coord bc, vBGMapA, 3, 7
+	ld hl, wTypeBScoring_TripleCount
+	cp 2
+	jr z, .got_scoring_info
 
 	ld de, $1200
-	ld bc, $9943
-	ld hl, $c0bb
+	coord bc, vBGMapA, 3, 10
+	ld hl, wTypeBScoring_TetrisCount
 
-jr_000_1f6d:
-	call Call_000_262d
+.got_scoring_info:
+	call Call_000_262d ; why no TCO?
 	ret
 
 HandleState12::
@@ -2580,19 +2340,19 @@ HandleState13::
 	and a
 	ret nz
 
-	ld a, $04
+	ld a, SONG_A_END_JINGLE
 	ld [wPlaySong], a
 	ld a, [hMultiplayer]
 	and a
-	jr z, jr_000_1f92
+	jr z, .skip_multiplayer
 
-	ld a, $3f
+	ld a, 63
 	ld [hDelayCounter], a
-	ld a, $1b
+	ld a, $1b ; TODO: why this value?
 	ld [hSerialDone], a
 	jr jr_000_1fc9
 
-jr_000_1f92:
+.skip_multiplayer:
 	ld a, " "
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ld hl, $c843
@@ -2603,11 +2363,11 @@ jr_000_1f92:
 	ld de, $29ca
 	ld c, 6
 	call Copy8TilesWide
-	ld a, [$ff00+$c0]
-	cp $37
+	ld a, [hGameType]
+	cp GAME_TYPE_A
 	jr nz, jr_000_1fc7
 
-	ld hl, $c0a2
+	ld hl, wScore + SCORE_SIZE - 1
 	ld a, [hl]
 	ld b, $58
 	cp $15
@@ -2627,7 +2387,6 @@ jr_000_1fc7:
 jr_000_1fc9:
 	ld [hGameState], a
 	ret
-
 
 jr_000_1fcc:
 	ld a, b
@@ -2670,7 +2429,7 @@ Call_000_1fec:
 	and a
 	ret nz
 
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $05
 	ret nz
 
@@ -2720,11 +2479,11 @@ jr_000_2024:
 FillPlayfieldWithTileAndDoSomethingElseImNotSure::
 	push af
 	ld a, $02
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	pop af
 	; fallthrough
 FillPlayfieldWithTile::
-	ld hl, wTileMap + 0 * BG_MAP_WIDTH + 2
+	coord hl, wTileMap, 2, 0
 	ld c, SCREEN_HEIGHT
 	ld de, BG_MAP_WIDTH
 .row_loop:
@@ -2875,7 +2634,7 @@ Gameplay_HoldingDown:
 	and a
 	jr nz, HandleGravity.end
 
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	and a
 	jr nz, HandleGravity.end
 
@@ -2908,7 +2667,7 @@ HandleGravity::
 	cp LOCKDOWN_STAGE_BLINK
 	ret z
 
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	and a
 	ret nz
 
@@ -3019,7 +2778,7 @@ LookForFullLines::
 	xor a
 	ld [hBuffer], a
 	ld de, wClearedLinesList
-	ld hl, wTileMap + 2 * BG_MAP_WIDTH + 2 ; TODO: why row 2 instead of 0?
+	coord hl, wTileMap, 2, 2 ; TODO: why row 2 instead of 0?
 	ld b, SCREEN_HEIGHT - 2
 
 .row_loop:
@@ -3203,7 +2962,7 @@ VBlank_HandleLineClearBlink::
 	ld a, 13
 	ld [hDelayCounter], a
 	ld a, 1
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 
 .finish_lockdown:
 	assert LOCKDOWN_STAGE_IDLE == 0
@@ -3241,16 +3000,16 @@ VBlank_HandleLineClearBlink::
 	call SpawnNewTetromino
 	jr .finish_lockdown
 
-Call_000_22ad:
+HandleRowShift:
 	ld a, [hDelayCounter]
 	and a
 	ret nz
 
-	ld a, [hRowToMove]
-	cp $01
+	ld a, [hLineClearStage]
+	cp LINECLEAR_STAGE_01
 	ret nz
 
-	ld de, $c0a3
+	ld de, wClearedLinesList
 	ld a, [de]
 
 jr_000_22ba:
@@ -3258,15 +3017,16 @@ jr_000_22ba:
 	inc de
 	ld a, [de]
 	ld l, a
+
 	push de
 	push hl
-	ld bc, $ffe0
+	ld bc, -BG_MAP_WIDTH
 	add hl, bc
 	pop de
 
 jr_000_22c5:
 	push hl
-	ld b, $0a
+	ld b, PLAYFIELD_WIDTH
 
 jr_000_22c8:
 	ld a, [hl+]
@@ -3278,10 +3038,10 @@ jr_000_22c8:
 	pop hl
 	push hl
 	pop de
-	ld bc, $ffe0
+	ld bc, -BG_MAP_WIDTH
 	add hl, bc
 	ld a, h
-	cp $c7
+	cp HIGH(wTileMap) - 1
 	jr nz, jr_000_22c5
 
 	pop de
@@ -3290,22 +3050,22 @@ jr_000_22c8:
 	and a
 	jr nz, jr_000_22ba
 
-	ld hl, $c802
-	ld a, $2f
-	ld b, $0a
+	coord hl, wTileMap, 2, 0
+	ld a, " "
+	ld b, PLAYFIELD_WIDTH
 
 jr_000_22e7:
 	ld [hl+], a
 	dec b
 	jr nz, jr_000_22e7
 
-	call Call_000_22f3
+	call ClearedLinesListReset
 	ld a, $02
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ret
 
 
-Call_000_22f3: ; TODO
+ClearedLinesListReset::
 	ld hl, wClearedLinesList
 	xor a
 	ld b, 9
@@ -3317,7 +3077,7 @@ Call_000_22f3: ; TODO
 
 
 Call_000_22fe:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $02
 	ret nz
 
@@ -3328,7 +3088,7 @@ Call_000_22fe:
 
 
 Call_000_230d:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $03
 	ret nz
 
@@ -3339,7 +3099,7 @@ Call_000_230d:
 
 
 Call_000_231c:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $04
 	ret nz
 
@@ -3350,7 +3110,7 @@ Call_000_231c:
 
 
 Call_000_232b:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $05
 	ret nz
 
@@ -3361,7 +3121,7 @@ Call_000_232b:
 
 
 Call_000_233a:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $06
 	ret nz
 
@@ -3372,7 +3132,7 @@ Call_000_233a:
 
 
 Call_000_2349:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $07
 	ret nz
 
@@ -3383,7 +3143,7 @@ Call_000_2349:
 
 
 Call_000_2358:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $08
 	ret nz
 
@@ -3418,7 +3178,7 @@ jr_000_2375:
 
 
 Call_000_2383:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $09
 	ret nz
 
@@ -3429,7 +3189,7 @@ Call_000_2383:
 
 
 Call_000_2392:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0a
 	ret nz
 
@@ -3440,7 +3200,7 @@ Call_000_2392:
 
 
 Call_000_23a1:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0b
 	ret nz
 
@@ -3451,7 +3211,7 @@ Call_000_23a1:
 
 
 Call_000_23b0:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0c
 	ret nz
 
@@ -3462,7 +3222,7 @@ Call_000_23b0:
 
 
 Call_000_23bf:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0d
 	ret nz
 
@@ -3473,7 +3233,7 @@ Call_000_23bf:
 
 
 Call_000_23ce:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0e
 	ret nz
 
@@ -3484,7 +3244,7 @@ Call_000_23ce:
 
 
 Call_000_23dd:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $0f
 	ret nz
 
@@ -3495,7 +3255,7 @@ Call_000_23dd:
 
 
 Call_000_23ec:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $10
 	ret nz
 
@@ -3507,7 +3267,7 @@ Call_000_23ec:
 
 
 Call_000_23fe:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $11
 	ret nz
 
@@ -3522,7 +3282,7 @@ Call_000_23fe:
 
 
 Call_000_2417:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $12
 	ret nz
 
@@ -3535,7 +3295,7 @@ Call_000_2417:
 
 
 Call_000_242c:
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	cp $13
 	ret nz
 
@@ -3544,7 +3304,7 @@ Call_000_242c:
 	ld de, $c802
 	call Call_000_2506
 	xor a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, [hGameState]
@@ -3725,9 +3485,9 @@ jr_000_2508:
 	dec b
 	jr nz, jr_000_2508
 
-	ld a, [hRowToMove]
+	ld a, [hLineClearStage]
 	inc a
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ret
 
 ; If the player has pressed left or right, and the current position allows such movement, move the
@@ -3965,7 +3725,7 @@ HandleLockdownTransferToTilemap:
 
 
 Call_000_262d:
-	ld a, [$c0c6]
+	ld a, [wTypeBScoring_DoTick]
 	cp $02
 	jr z, jr_000_267a
 
@@ -4281,7 +4041,7 @@ jr_000_285b:
 jr_000_286e:
 	pop hl
 	ld a, $02
-	ld [hRowToMove], a
+	ld [hLineClearStage], a
 	ret
 
 DisableLCD::
@@ -4360,7 +4120,10 @@ INCBIN "gfx/type_a_menu_tilemap.bin"
 TypeBMenuTilemap::
 INCBIN "gfx/type_b_menu_tilemap.bin"
 
-INCBIN "baserom.gb", $5157, $525c - $5157
+VictoryDanceTilemap::
+INCBIN "gfx/victory_dance_tilemap.bin"
+
+INCBIN "baserom.gb", $520b, $525c - $520b
 
 MultiplayerMenuTilemap::
 INCBIN "gfx/multiplayer_menu_tilemap.bin"

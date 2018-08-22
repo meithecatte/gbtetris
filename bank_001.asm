@@ -5812,6 +5812,12 @@ jr_001_7e39:
 	nop
 	endr
 
+IF DEF(INTERNATIONAL)
+	rept 72
+	nop
+	endr
+ENDC
+
 JumpUpdateAudio::
 	jp UpdateAudio
 
