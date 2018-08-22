@@ -80,7 +80,7 @@ Unused_WTF::
 ; HL = pointer to destination, first operand. 3 bytes
 ; DE = second operand, directly as a register
 ; On overflow, the result is 999999
-; TODO: a quick CODE XREF check suggests that this is used for more than score updates
+; TODO: a quick CODE XREF check suggests this may be used for more than score updates
 AddBCD::
 	ld a, e
 	add [hl]
@@ -109,529 +109,8 @@ IF !DEF(INTERNATIONAL)
 ENDC
 
 INCLUDE "vblank.asm"
-
-Init::
-	xor a
-	ld hl, $dfff
-	ld c, $10 ; could ld bc,
-	ld b, $00
-
-.clear_wramx:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_wramx
-
-	dec c
-	jr nz, .clear_wramx
-
-SoftReset:
-	ld a, IEF_VBLANK
-	di
-	ld [rIF], a
-	ld [rIE], a
-	xor a
-	ld [rSCY], a
-	ld [rSCX], a
-	ld [$ff00+$a4], a
-	ld [rSTAT], a
-	ld [rSB], a
-	ld [rSC], a
-	ld a, LCDCF_ON
-	ld [rLCDC], a
-
-.vblank_wait:
-	ld a, [rLY]
-	cp SCREEN_HEIGHT_PX + 4
-	jr nz, .vblank_wait
-
-	ld a, LCDCF_OBJON | LCDCF_BGON
-	ld [rLCDC], a
-	ld a, %11100100
-	ld [rBGP], a
-	ld [rOBP0], a
-	ld a, %11000100
-	ld [rOBP1], a
-
-	ld hl, rAUDENA
-	ld a, AUDENA_ENABLED
-	ld [hl-], a
-	assert rAUDENA +- 1 == rAUDTERM
-	ld a, AUDTERM_ALL
-	ld [hl-], a
-	assert rAUDTERM +- 1 == rAUDVOL
-	ld [hl], AUDVOL_MAX
-
-	ld a, $01 ; noop on the cartridge used
-	ld [$2000], a
-
-	ld sp, wStackEnd - 1
-
-	xor a
-	ld hl, wAudioEnd - 1
-	ld b, $00
-.clear_audio:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_audio
-
-	ld hl, $cfff
-	ld c, $10
-	ld b, $00 ; unnecessary
-.clear_wram0:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_wram0
-	dec c
-	jr nz, .clear_wram0
-
-	ld hl, $9fff ; could just load h
-	ld c, $20
-	xor a ; unnecessary
-	ld b, $00 ; unnecessary
-.clear_vram:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_vram
-	dec c
-	jr nz, .clear_vram
-
-	ld hl, $feff
-	ld b, $00 ; unnecessary
-.clear_oam:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_oam
-
-	ld hl, $fffe
-	; writes to ff7f too, could break forward compat if Nintendo did something on new consoles
-	ld b, $80
-.clear_hram:
-	ld [hl-], a
-	dec b
-	jr nz, .clear_hram
-
-	ld c, LOW(hOAMDMA) ; could ld bc, 
-	ld b, 12 ; the routine is only 10 bytes long
-	ld hl, DMA_Routine
-.copy_dma_routine:
-	ld a, [hl+]
-	ld [$ff00+c], a
-	inc c
-	dec b
-	jr nz, .copy_dma_routine
-
-	call ClearTilemapA
-	call JumpResetAudio
-	ld a, IEF_SERIAL | IEF_VBLANK
-	ld [rIE], a
-	ld a, GAME_TYPE_A
-	ld [hGameType], a
-	ld a, MUSIC_TYPE_A
-	ld [hMusicType], a
-	ld a, STATE_LOAD_COPYRIGHT
-	ld [hGameState], a
-	ld a, LCDCF_ON
-	ld [rLCDC], a
-	ei
-	xor a
-	ld [rIF], a
-	ld [rWY], a
-	ld [rWX], a
-	ld [rTMA], a
-
-MainLoop::
-	call ReadJoypad
-	call HandleGameState
-	call JumpUpdateAudio
-
-	ld a, [hKeysHeld]
-	and A_BUTTON | B_BUTTON | SELECT | START
-	cp  A_BUTTON | B_BUTTON | SELECT | START
-	jp z, SoftReset
-
-	assert hDelayCounter + 1 == hFastDropDelayCounter
-	ld hl, hDelayCounter
-	ld b, 2
-.counter_loop:
-	ld a, [hl]
-	and a
-	jr z, .already_zero
-	dec [hl]
-.already_zero:
-	inc l
-	dec b
-	jr nz, .counter_loop
-
-	ld a, [hMultiplayer]
-	and a
-	jr z, .wait_vblank
-
-	ld a, IEF_SERIAL | IEF_VBLANK
-	ld [rIE], a
-
-.wait_vblank:
-	ld a, [hVBlankOccured]
-	and a
-	jr z, .wait_vblank
-
-	xor a
-	ld [hVBlankOccured], a
-	jp MainLoop
-
-HandleGameState::
-	ld a, [hGameState]
-	jumptable
-	dw HandleGameplay ; 0
-	dw HandleGameOver
-	dw HandleState2 ; 2
-	dw HandleState3 ; 3
-	dw HandleState4 ; 4
-	dw HandleState5 ; 5
-	dw LoadTitlescreen
-	dw HandleTitlescreen
-	dw LoadModeSelect
-	dw GenericEmptyRoutine2
-	dw LoadPlayfield
-	dw HandleState11 ; 11
-	dw HandleState12 ; 12
-	dw HandleState13 ; 13
-	dw HandleModeSelect
-	dw HandleMusicSelect
-	dw LoadTypeAMenu
-	dw HandleTypeAMenu
-	dw LoadTypeBMenu
-	dw HandleTypeBLevelSelect
-	dw HandleTypeBHighSelect
-	dw HandleHighscoreEnterName
-	dw HandleState22
-	dw HandleState23 ; 23
-	dw HandleState24 ; 24
-	dw HandleState25 ; 25
-	dw HandleState26 ; 26
-	dw HandleState27 ; 27
-	dw HandleState28 ; 28
-	dw HandleState29 ; 29
-	dw HandleState30 ; 30
-	dw HandleState31 ; 31
-	dw HandleState32 ; 32
-	dw HandleState33 ; 33
-	dw HandleState34 ; 34
-	dw HandleState35 ; STATE_35
-	dw LoadCopyrightScreen ; STATE_LOAD_COPYRIGHT
-	dw HandleCopyrightScreen ; STATE_COPYRIGHT
-	dw HandleState38
-	dw HandleState39
-	dw HandleState40
-	dw HandleState41
-	dw LoadMultiplayerMusicSelect
-	dw HandleState43
-	dw HandleState44
-	dw HandleState45
-	dw HandleState46
-	dw HandleState47
-	dw HandleState48
-	dw HandleState49
-	dw HandleState50
-	dw HandleState51
-	dw HandleState52
-IF DEF(INTERNATIONAL)
-	dw MoreCopyrightScreenDelay
-ENDC
-	dw GenericEmptyRoutine
-
-LoadCopyrightScreen::
-	call DisableLCD
-	call LoadTitlescreenTileset
-	ld de, CopyrightTilemap
-	call LoadTilemapA
-	call ClearOAM
-
-	ld hl, $c300 ; TODO
-	ld de, $64d0
-.loop:
-	ld a, [de]
-	ld [hl+], a
-	inc de
-	ld a, h
-	cp $c4
-	jr nz, .loop
-
-	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
-	ld [rLCDC], a
-IF DEF(INTERNATIONAL)
-	ld a, 250
-ELSE
-	ld a, 125
-ENDC
-	ld [hDelayCounter], a
-	ld a, STATE_COPYRIGHT
-	ld [hGameState], a
-	ret
-
-HandleCopyrightScreen::
-	ld a, [hDelayCounter]
-	and a
-	ret nz
-
-IF DEF(INTERNATIONAL)
-	ld a, 250
-	ld [hDelayCounter], a
-	ld a, STATE_MORE_COPYRIGHT
-	ld [hGameState], a
-	ret
-
-MoreCopyrightScreenDelay::
-	ld a, [hKeysPressed]
-	and a
-	jr nz, .skip
-	ld a, [hDelayCounter]
-	and a
-	ret nz
-.skip
-ENDC
-	ld a, STATE_LOAD_TITLESCREEN
-	ld [hGameState], a
-	ret
-
-LoadTitlescreen::
-	call DisableLCD
-	xor a
-	ld [hRecordDemo], a ; TODO
-	ld [hLockdownStage], a
-	ld [$ff00+$9c], a
-	ld [hCollisionOccured_NeverRead], a
-	ld [hFailedTetrominoPlacements], a
-	ld [$ff00+$9f], a
-	ld [hRowToMove], a
-IF !DEF(INTERNATIONAL)
-	ld [$ff00+$e7], a
-ENDC
-	ld [hHighscoreEnterName], a
-	call Call_000_22f3
-	call ResetGameplayVariablesMaybe
-	call LoadTitlescreenTileset
-
-	ld hl, $c800 ; TODO
-.clear_unk:
-	ld a, $2f
-	ld [hl+], a
-	ld a, h
-	cp $cc
-	jr nz, .clear_unk
-
-	ld hl, $c801
-	call unk26fd
-	ld hl, $c80c
-	call unk26fd
-	ld hl, $ca41
-	ld b, 12
-	ld a, $8e
-
-.loop:
-	ld [hl+], a
-	dec b
-	jr nz, .loop
-
-	ld de, TitlescreenTilemap
-	call LoadTilemapA
-	call ClearOAM
-
-	ld hl, wOAMBuffer
-	ld [hl], 128 ; y
-	inc l
-	ld [hl], 16 ; x
-	inc l
-	ld [hl], $58 ; tile, attr stays 0
-
-	ld a, SONG_TITLESCREEN
-	ld [wPlaySong], a
-	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
-	ld [rLCDC], a
-	ld a, STATE_TITLESCREEN
-	ld [hGameState], a
-	ld a, 125
-	ld [hDelayCounter], a
-	ld a, 4 ; if just finished demo, shorter wait
-	ld [hDemoCountdown], a
-	ld a, [hDemoNumber]
-	and a
-	ret nz
-
-	ld a, 19
-	ld [hDemoCountdown], a
-	ret
-
-StartDemo::
-	ld a, GAME_TYPE_A
-	ld [hGameType], a
-	ld a, 9
-	ld [hTypeALevel], a
-	xor a
-	ld [hMultiplayer], a
-	ld [hRandomnessPointer], a
-	ld [hLastDemoInput], a
-	ld [hCountdownTillNextDemoInput], a
-	ld a, HIGH(DemoDataTypeA)
-	ld [hDemoPtrHi], a
-	ld a, LOW(DemoDataTypeA)
-	ld [hDemoPtrLo], a
-	ld a, [hDemoNumber]
-	cp DEMO_TYPE_A
-	ld a, DEMO_TYPE_A
-	jr nz, .got_params
-
-	ld a, GAME_TYPE_B
-	ld [hGameType], a
-	ld a, 9
-	ld [hTypeBLevel], a
-	ld a, 2
-	ld [hTypeBHigh], a
-	ld a, HIGH(DemoDataTypeB)
-	ld [hDemoPtrHi], a
-	ld a, LOW(DemoDataTypeB)
-	ld [hDemoPtrLo], a ; this is set to the same value above...
-	ld a, 17
-	ld [hRandomnessPointer], a
-	ld a, DEMO_TYPE_B
-
-.got_params:
-	ld [hDemoNumber], a
-	ld a, STATE_LOAD_PLAYFIELD
-	ld [hGameState], a
-	call DisableLCD
-	call LoadTileset
-	ld de, ModeSelectTilemap
-	call LoadTilemapA
-	call ClearOAM
-	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
-	ld [rLCDC], a
-	ret
-
-Unused_StartDemoRecording::
-	ld a, DEMO_RECORD
-	ld [hRecordDemo], a
-	ret
-
-HandleTitlescreen::
-	ld a, [hDelayCounter]
-	and a
-	jr nz, .no_demo
-
-	ld hl, hDemoCountdown
-	dec [hl]
-	jr z, StartDemo
-
-	ld a, 125
-	ld [hDelayCounter], a
-
-.no_demo:
-	call DelayLoop
-	ld a, SERIAL_SLAVE ; if any byte is sent, respond
-	ld [rSB], a
-	ld a, SCF_RQ
-	ld [rSC], a
-	ld a, [hSerialDone]
-	and a
-	jr z, .no_serial_data
-
-	ld a, [hMasterSlave]
-	and a
-	jr nz, .start_multiplayer
-
-	xor a
-	ld [hSerialDone], a
-	jr .go_single
-
-.no_serial_data:
-	ld a, [hKeysPressed]
-	ld b, a
-	ld a, [hMultiplayer]
-	bit SELECT_BIT, b
-	jr nz, .switch
-
-	bit D_RIGHT_BIT, b
-	jr nz, .pressed_right
-
-	bit D_LEFT_BIT, b
-	jr nz, .pressed_left
-
-	bit START_BIT, b
-	ret z
-
-	and a
-	ld a, STATE_LOAD_MODE_SELECT ; this should be set just before jumping to .done - that way you don't need to save it
-	jr z, .start_singleplayer
-
-	ld a, b
-	cp START
-	ret nz
-
-	ld a, [hMasterSlave]
-	cp SERIAL_MASTER
-	jr z, .start_multiplayer
-
-	ld a, SERIAL_MASTER
-	ld [rSB], a
-	ld a, SCF_RQ | SCF_MASTER
-	ld [rSC], a
-
-.wait_serial:
-	ld a, [hSerialDone]
-	and a
-	jr z, .wait_serial
-
-	ld a, [hMasterSlave]
-	and a
-	jr z, .go_single
-
-.start_multiplayer
-	ld a, STATE_LOAD_MULTIPLAYER_MUSIC_SELECT
-
-.done:
-	ld [hGameState], a
-	xor a
-	ld [hDelayCounter], a
-	ld [hTypeALevel], a
-	ld [hTypeBLevel], a
-	ld [hTypeBHigh], a
-	ld [hDemoNumber], a
-	ret
-
-.start_singleplayer:
-	push af
-	ld a, [hKeysHeld]
-	bit D_DOWN_BIT, a
-	jr z, .no_down_press
-	ld [hStartAtLevel10], a
-.no_down_press:
-	pop af
-	jr .done
-.switch:
-	xor $01
-.move_cursor:
-	ld [hMultiplayer], a
-	and a
-	ld a, $10
-	jr z, .got_pos
-	ld a, $60
-.got_pos:
-	ld [wOAMBuffer + 1], a
-	ret
-
-.pressed_right:
-	and a ; just set a to 1 and jump to move_cursor!
-	ret nz
-	xor a ; redundant
-	jr .switch
-
-.pressed_left:
-	and a ; just set a to 0 and jump to move_cursor!
-	ret z
-
-.go_single:
-	xor a
-	jr .move_cursor
-
+INCLUDE "mainloop.asm"
+INCLUDE "titlescreen.asm"
 INCLUDE "demo.asm"
 
 LoadMultiplayerMusicSelect_Slave::
@@ -1085,7 +564,7 @@ Jump_000_0895:
 	xor a
 	ld [$c210], a
 	ld [hLockdownStage], a
-	ld [$ff00+$9c], a
+	ld [hBlinkCounter], a
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
@@ -1394,15 +873,15 @@ Jump_000_0a35:
 	set 7, [hl]
 
 jr_000_0a53:
-	ld hl, $c300
+	ld hl, wRandomness
 	ld a, [hl+]
-	ld [$c203], a
+	ld [wSpriteList sprite 0 + SPRITE_OFFSET_ID], a
 	ld a, [hl+]
-	ld [$c213], a
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_ID], a
 	ld a, h
-	ld [$ff00+$af], a
+	ld [hRandomnessPtrHi_NeverRead], a
 	ld a, l
-	ld [hRandomnessPointer], a
+	ld [hRandomnessPtrLo], a
 	ret
 
 
@@ -3441,7 +2920,7 @@ LoadPlayfield::
 	assert SPRITE_VISIBLE == 0
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 	ld [hLockdownStage], a
-	ld [$ff00+$9c], a
+	ld [hBlinkCounter], a
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
@@ -4002,7 +3481,7 @@ HandleGameOver::
 	call UpdateNextTetromino
 	xor a
 	ld [hLockdownStage], a
-	ld [$ff00+$9c], a
+	ld [hBlinkCounter], a
 	call Call_000_22f3
 	ld a, $87
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
@@ -4576,7 +4055,11 @@ jr_000_2059:
 
 	ret
 
-
+; Move the piece from the next tetromino box to the top of the screen. Put hNextNextPiece in that
+; box, and generate a new value for the variable.
+; Input: none
+; Output: none
+; Clobbers all registers
 SpawnNewTetromino::
 	ld hl, wSpriteList sprite 0
 	ld [hl], SPRITE_VISIBLE
@@ -4598,18 +4081,18 @@ SpawnNewTetromino::
 	jr z, .random
 
 .predefined:
-	ld h, HIGH(wRandomness)
-	ld a, [hRandomnessPointer]
+	ld h, HIGH(wRandomness) ; aligned to a 256-byte boundary
+	ld a, [hRandomnessPtrLo]
 	ld l, a
 	ld e, [hl]
 	inc hl
-	ld a, h
+	ld a, h ; so it didn't occur to you to just use the overflow?
 	cp HIGH(wRandomness) + 1
 	jr nz, .save_pointer
-	ld hl, wRandomness ; could just set l to 0, then move the ld a, l to before the jump and make this a xor a
-.save_pointer:
+	ld hl, wRandomness
+.save_pointer: ; </bullshit>
 	ld a, l
-	ld [hRandomnessPointer], a
+	ld [hRandomnessPtrLo], a
 	ld a, [$ff00+$d3]
 	and a
 	jr z, .end
@@ -4620,44 +4103,41 @@ SpawnNewTetromino::
 
 .random:
 	ld h, 3
-
 .try_again:
 	ld a, [rDIV]
 	ld b, a
-
 .back_to_zero:
 	xor a
-
 .division_loop:
 	dec b
 	jr z, .try_next_next_piece
 
-	inc a ; just add 4 !
+	inc a ; just use a normal add instruction!
 	inc a
 	inc a
 	inc a
 	cp SPRITE_TYPE_A ; first sprite that's not a tetromino
 	jr z, .back_to_zero
-
 	jr .division_loop
 
 .try_next_next_piece:
 	ld d, a
 	ld a, [hNextNextPiece]
 	ld e, a
-	dec h
+	dec h ; accept any piece on the third try
 	jr z, .got_next_next_piece
 
+	; e - will be shown as the next piece in a moment
+	; d - candidate for a hidden next next piece
+	; c - the piece just moved to the top of the playfield
 	or d
 	or c
-	and $ff ^ SPRITE_ID_ROTATION_MASK
+	and $ff ^ SPRITE_ID_ROTATION_MASK ; this is guaranteed to be a noop
 	cp c
 	jr z, .try_again
-
 .got_next_next_piece:
 	ld a, d
 	ld [hNextNextPiece], a
-
 .end:
 	ld a, e
 	ld [wSpriteList sprite 1 + SPRITE_OFFSET_ID], a
@@ -4679,7 +4159,6 @@ Gameplay_HoldingDown:
 
 	xor a
 	ld [wDidntUseFastDropOnThisPiece], a
-
 .not_first_time:
 	ld a, [hFastDropDelayCounter]
 	and a
@@ -4719,7 +4198,7 @@ HandleGravity::
 
 .timing_ok:
 	ld a, [hLockdownStage]
-	cp LOCKDOWN_STAGE_3
+	cp LOCKDOWN_STAGE_BLINK
 	ret z
 
 	ld a, [hRowToMove]
@@ -4868,9 +4347,9 @@ LookForFullLines::
 	dec b
 	jr nz, .row_loop
 
-	ld a, LOCKDOWN_STAGE_3
+	ld a, LOCKDOWN_STAGE_BLINK
 	ld [hLockdownStage], a
-	assert LOCKDOWN_STAGE_3 == 3
+	assert LOCKDOWN_STAGE_BLINK == 3
 	dec a
 	ld [hDelayCounter], a
 	ld a, [hBuffer]
@@ -4959,9 +4438,9 @@ ENDC
 	ld [hLineCount], a
 	jr .line_count_done
 
-Call_000_2240:
+VBlank_HandleLineClearBlink::
 	ld a, [hLockdownStage]
-	cp LOCKDOWN_STAGE_3
+	cp LOCKDOWN_STAGE_BLINK
 	ret nz
 
 	ld a, [hDelayCounter]
@@ -4969,75 +4448,73 @@ Call_000_2240:
 	ret nz
 
 	ld de, wClearedLinesList
-	ld a, [$ff00+$9c]
+	ld a, [hBlinkCounter]
 	bit 0, a
-	jr nz, .unk3
+	jr nz, .show_line_loop
 
 	ld a, [de]
 	and a
-	jr z, .unk5
-
-.outer_loop:
-	sub $30
+	jr z, .no_line_clear
+.tile_fill_loop:
+	sub HIGH(wTileMap - vBGMapA) ; convert to VRAM address
 	ld h, a
 	inc de
 	ld a, [de]
 	ld l, a
-	ld a, [$ff00+$9c]
-	cp $06
+
+	ld a, [hBlinkCounter]
+	cp 6
 	ld a, $8c
-	jr nz, .skip
-
-	ld a, $2f
-
-.skip:
-	ld c, $0a
-
-.inner_loop:
+	jr nz, .got_fill_tile
+	ld a, " "
+.got_fill_tile:
+	ld c, PLAYFIELD_WIDTH
+.tile_fill_loop_inner:
 	ld [hl+], a
 	dec c
-	jr nz, .inner_loop
+	jr nz, .tile_fill_loop_inner
 
 	inc de
 	ld a, [de]
 	and a
-	jr nz, .outer_loop
+	jr nz, .tile_fill_loop
 
-.loop2:
-	ld a, [$ff00+$9c]
+.end:
+	ld a, [hBlinkCounter]
 	inc a
-	ld [$ff00+$9c], a
-	cp $07
-	jr z, .unk1
+	ld [hBlinkCounter], a
+	cp 7
+	jr z, .finished_blinking
 
 	ld a, 10
 	ld [hDelayCounter], a
 	ret
 
-.unk1:
+.finished_blinking:
 	xor a
-	ld [$ff00+$9c], a
+	ld [hBlinkCounter], a
 	ld a, 13
 	ld [hDelayCounter], a
-	ld a, $01
+	ld a, 1
 	ld [hRowToMove], a
 
-.unk2:
+.finish_lockdown:
+	assert LOCKDOWN_STAGE_IDLE == 0
 	xor a
 	ld [hLockdownStage], a
 	ret
 
-.unk3:
+.show_line_loop:
 	ld a, [de]
 	ld h, a
-	sub $30
+	sub HIGH(wTileMap - vBGMapA)
 	ld c, a
 	inc de
 	ld a, [de]
 	ld l, a
-	ld b, $0a
+	ld b, PLAYFIELD_WIDTH
 
-.unk4:
+.show_line_loop_inner:
 	ld a, [hl]
 	push hl
 	ld h, c
@@ -5045,18 +4522,17 @@ Call_000_2240:
 	pop hl
 	inc hl
 	dec b
-	jr nz, .unk4
+	jr nz, .show_line_loop_inner
 
 	inc de
 	ld a, [de]
 	and a
-	jr nz, .unk3
+	jr nz, .show_line_loop
+	jr .end
 
-	jr .loop2
-
-.unk5:
+.no_line_clear:
 	call SpawnNewTetromino
-	jr .unk2
+	jr .finish_lockdown
 
 Call_000_22ad:
 	ld a, [hDelayCounter]
@@ -5513,9 +4989,9 @@ jr_000_24de:
 	jr jr_000_24de
 
 jr_000_24f4:
-	ld a, $02
+	ld a, PULSESFX_CONFIRM_BEEP
 	ld [wPlayPulseSFX], a
-	call Call_000_1b43
+	call Call_000_1b43 ; why no TCO?
 	ret
 
 jr_000_24fd:
@@ -5940,8 +5416,8 @@ UpdateNextTetromino::
 	call UpdateSprites ; why no TCO?
 	ret
 
-unk26fd::
-	ld b, $20
+DrawBlackVerticalStrip::
+	ld b, BG_MAP_HEIGHT
 	ld a, $8e
 	ld de, BG_MAP_WIDTH
 .loop:
@@ -6321,7 +5797,7 @@ DemoDataTypeB::
 	db D_LEFT,            11
 	db 0,                  7
 	db D_LEFT,             6
-	db 0,                 100
+	db 0,                100
 	db D_RIGHT,            0
 	db A_BUTTON + D_RIGHT, 6
 	db D_RIGHT,            5
@@ -6357,7 +5833,7 @@ DemoDataTypeB::
 	db D_RIGHT,            4
 	db 0,                 13
 	db D_DOWN,            28
-	db 0,                 117
+	db 0,                117
 	db A_BUTTON,           6
 	db 0,                 14
 	db D_DOWN,            31
@@ -6383,4 +5859,23 @@ REPT 16
 	db 0,                  0
 ENDR
 
-INCBIN "baserom.gb", $64d0, $6552 - $64d0
+DemoRandomness::
+	; type A demo
+	db SPRITE_Z0, SPRITE_T0, SPRITE_L0, SPRITE_J0
+	db SPRITE_I0, SPRITE_L0, SPRITE_J0, SPRITE_I0
+	db SPRITE_I0, SPRITE_L0, SPRITE_J0, SPRITE_S0
+	db SPRITE_Z0, SPRITE_I0, SPRITE_Z0, SPRITE_Z0
+DemoRandomnessTypeAEnd::
+	db SPRITE_S0
+DemoRandomnessTypeB::
+	; type B demo
+	db SPRITE_T0, SPRITE_S0, SPRITE_L0, SPRITE_O0
+	db SPRITE_J0, SPRITE_T0, SPRITE_L0, SPRITE_S0
+	db SPRITE_S0, SPRITE_I0, SPRITE_J0, SPRITE_J0
+DemoRandomnessTypeBEnd::
+	; unused
+	db SPRITE_O0, SPRITE_L0, SPRITE_T0, SPRITE_J0
+	db SPRITE_L0, SPRITE_I0, SPRITE_O0, SPRITE_O0
+	db SPRITE_T0, SPRITE_L0, SPRITE_O0, SPRITE_I0
+	; ...
+INCBIN "baserom.gb", $64f9, $6552 - $64f9

@@ -242,7 +242,7 @@ LoadTypeAMenu::
 	call UpdateDigitCursor
 	call UpdateTwoSprites
 	call RenderTypeAHighscores
-	call CopyHighscoresFromTilemapBuffer
+	call VBlank_HighscoreTilemap
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
 	ld a, STATE_TYPE_A_MENU
@@ -349,7 +349,7 @@ LoadTypeBMenu::
 	call UpdateDigitCursor
 	call UpdateTwoSprites
 	call RenderTypeBHighscores
-	call CopyHighscoresFromTilemapBuffer
+	call VBlank_HighscoreTilemap
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
 	ld [rLCDC], a
 	ld a, STATE_TYPE_B_LEVEL_SELECT

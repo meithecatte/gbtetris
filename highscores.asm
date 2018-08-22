@@ -224,7 +224,7 @@ ENDR
 	ld a, e
 	ld [hHighscoreNamePtrLo], a
 	xor a
-	ld [hHighscoreBlink], a
+	ld [hBlinkCounter], a
 	ld [hHighscoreLettersEntered], a
 	ld a, SONG_HIGHSCORE
 	ld [wPlaySong], a
@@ -299,7 +299,7 @@ ENDR
 	ld [hEnableHighscoreVBlank], a
 	ret
 
-CopyHighscoresFromTilemapBuffer::
+VBlank_HighscoreTilemap::
 	ld a, [hEnableHighscoreVBlank]
 	and a
 	ret z
@@ -399,9 +399,9 @@ HandleHighscoreEnterName::
 
 	ld a, 7
 	ld [hDelayCounter], a
-	ld a, [hHighscoreBlink]
+	ld a, [hBlinkCounter]
 	xor 1
-	ld [hHighscoreBlink], a
+	ld [hBlinkCounter], a
 	ld a, [de]
 	jr z, .blink
 

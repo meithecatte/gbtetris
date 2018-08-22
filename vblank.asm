@@ -19,7 +19,7 @@ VBlankInterrupt::
 	ld [hl], SCF_RQ | SCF_MASTER
 
 .serial_done:
-	call Call_000_2240
+	call VBlank_HandleLineClearBlink
 	call Call_000_242c
 	call Call_000_2417
 	call Call_000_23fe
@@ -40,14 +40,14 @@ VBlankInterrupt::
 	call Call_000_22fe
 	call Call_000_1f32
 	call hOAMDMA
-	call CopyHighscoresFromTilemapBuffer
+	call VBlank_HighscoreTilemap
 
 	ld a, [wScoreDirty]
 	and a
 	jr z, .score_done
 
 	ld a, [hLockdownStage]
-	cp LOCKDOWN_STAGE_3
+	cp LOCKDOWN_STAGE_BLINK
 	jr nz, .score_done
 
 	ld hl, vBGMapA + 3 * BG_MAP_WIDTH + 13
