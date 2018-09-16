@@ -31,6 +31,48 @@ Each object list is prefixed by a pointer to a dimension descriptor, which maps 
 that follows to the two dimensions of the screen. The list of object IDs can, apart from tileset indices,
 contain three special values:
 
- - `$ff` indicates the end of the list, and makes the routine move on to the next sprite in `wSpriteList`, if any.
- - `$fe` indicates an empty spot, and makes the routine skip an entry in the dimension descriptor.
- - `$fd` indicates that the next actual object ID to follow is to be flipped horizontally.
+- `$ff` indicates the end of the list, and makes the routine move on to the next sprite in `wSpriteList`, if any.
+- `$fe` indicates an empty spot, and makes the routine skip an entry in the dimension descriptor.
+- `$fd` indicates that the next actual object ID to follow is to be flipped horizontally.
+
+To illustrate this, let's look at the sprite definition of a T tetromino, or, to be more specific -- one of them.
+Tetrominoes have four sprite descriptors each, one for each possible rotation state. This also applies
+to O, I, Z and S, even though their rotational symmetry creates duplicate descriptors. Apart from
+the ingenuity of the person who entered the data, nothing prevents duplicating the pointers in the
+`SpriteDescriptorPointers` list instead of repeating all the data.
+
+At least, all tetrominoes make use of the same dimension descriptor:
+
+```asm
+SpriteDim4x4::
+	db 0,  0
+	db 0,  8
+	db 0,  16
+	db 0,  24
+	db 8,  0
+	db 8,  8
+	db 8,  16
+	db 8,  24
+	db 16, 0
+	db 16, 8
+	db 16, 16
+	db 16, 24
+	db 24, 0
+	db 24, 8
+	db 24, 16
+	db 24, 24
+```
+
+This set of coordinate pairs is then mapped to the individual objects making up the tetromino:
+
+```asm
+; make it readable
+_ EQU $fe
+
+SpriteT1Objects::
+	dw SpriteDim4x4
+	db _,   _,   _,   _
+	db _,   $85, _,   _
+	db $85, $85, _,   _
+	db _,   $85, $ff
+```

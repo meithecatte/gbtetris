@@ -116,6 +116,7 @@ UpdateSprites::
 	jr .got_sprite_id
 
 .empty_spot:
+	; move to the next dimension descriptor entry
 	inc de
 	inc de
 	jr .object_loop
@@ -126,6 +127,8 @@ UpdateSprites::
 
 .got_sprite_id:
 	ld [hCurSpriteID], a
+
+	; calculate the Y coordinate for the object
 	ld a, [hCurSpriteY]
 	ld b, a
 	ld a, [de]
@@ -136,7 +139,7 @@ UpdateSprites::
 
 	ld a, [hSpriteAnchorY]
 	add b
-	adc c
+	adc c ; TODO: why adc?
 	jr .got_y
 
 .mirrored_y:
@@ -146,11 +149,13 @@ UpdateSprites::
 	ld b, a
 	pop af
 	sub b
-	sbc c
+	sbc c ; TODO: why sbc?
 	sbc 8
 
 .got_y:
 	ld [hObjectY], a
+
+	; likewise, calculate the X coordinate
 	ld a, [hCurSpriteX]
 	ld b, a
 	inc de
@@ -178,27 +183,30 @@ UpdateSprites::
 
 .got_x:
 	ld [hObjectX], a
+
+	; get the OAM pointer
 	push hl
 	ld a, [hOAMBufferPtrHi]
 	ld h, a
 	ld a, [hOAMBufferPtrLo]
 	ld l, a
+
+	; move sprites to the $ff line instead of just skipping them, so that the entries from a
+	; previous update are overwritten
 	ld a, [hSpriteHidden]
 	and a
 	jr z, .real_y
-
 	ld a, $ff
 	jr .done_hiding
-
 .real_y:
 	ld a, [hObjectY]
-
 .done_hiding:
-	ld [hl+], a
+	ld [hl+], a ; Y
 	ld a, [hObjectX]
-	ld [hl+], a
+	ld [hl+], a ; X
 	ld a, [hCurSpriteID]
-	ld [hl+], a
+	ld [hl+], a ; ID
+
 	ld a, [hObjectFlags]
 	ld b, a
 	ld a, [hCurSpriteFlip]
@@ -206,7 +214,9 @@ UpdateSprites::
 	ld b, a
 	ld a, [hCurSpriteBelowBG]
 	or b
-	ld [hl+], a
+	ld [hl+], a ; flags
+
+	; save the new OAM pointer and restore the object list pointer
 	ld a, h
 	ld [hOAMBufferPtrHi], a
 	ld a, l
@@ -290,6 +300,7 @@ INCBIN "baserom.gb", $2d10, $2da0 - $2d10
 
 ; make it readable
 _ EQU $fe
+
 SpriteL0Objects::
 	dw SpriteDim4x4
 	db _,   _,   _,   _  
@@ -309,7 +320,7 @@ SpriteL2Objects::
 	db _,   _,   _,   _
 	db _,   _,   $84, _
 	db $84, $84, $84, _
-	db $ff ; couldn't you have stopped this sooner?
+	db $ff ; useless _ before $ff
 
 SpriteL3Objects::
 	dw SpriteDim4x4
