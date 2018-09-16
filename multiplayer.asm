@@ -24,7 +24,7 @@ LoadMultiplayerMusicSelect::
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	call JumpResetAudio
 	ld a, STATE_43
 	ld [hGameState], a
@@ -162,7 +162,7 @@ jr_000_0703:
 	ld [$ff00+$d3], a
 	ld [$ff00+$d4], a
 	ld [$ff00+$d5], a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 
 jr_000_072c:
 	ld [hSerialDone], a
@@ -189,7 +189,7 @@ jr_000_0749:
 	ld b, $20
 
 jr_000_074e:
-	call $0792
+	call unk0792
 	ld hl, $c200
 	ld de, $2741
 	ld c, 2
@@ -238,8 +238,10 @@ jr_000_074e:
 	add b
 	jr nc, @-$3d
 
-	jr nz, @+$1c
+	db $20
 
+unk0792::
+	ld a, [de]
 	ld [hl+], a
 	inc de
 	dec b
@@ -465,7 +467,7 @@ Jump_000_0895:
 	xor a
 
 jr_000_08b9:
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -487,10 +489,10 @@ jr_000_08cd:
 	call Copy8TilesWide
 	ld hl, $c200
 	ld de, CurrentTetriminoSpriteDescriptor
-	call LoadGameplaySprite
+	call LoadSingleSprite
 	ld hl, $c210
-	ld de, NextTetrominoSpriteDescriptor
-	call LoadGameplaySprite
+	ld de, NextTetrominoSpriteList
+	call LoadSingleSprite
 	ld hl, $9951
 	ld a, $30
 	ld [$ff00+$9e], a
@@ -516,7 +518,7 @@ jr_000_0913:
 	ld [hl], a
 	ld hl, $c080
 	ld b, $10
-	call $0792
+	call unk0792
 	ld a, $77
 	ld [$ff00+$c0], a
 	ld a, LCDCF_ON | LCDCF_WIN9C00 | LCDCF_BG8000 | LCDCF_BG9800 | LCDCF_OBJON | LCDCF_BGON
@@ -747,7 +749,7 @@ Jump_000_0a35:
 	ld a, $1c
 	ld [hGameState], a
 	ld a, $02
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ld a, $03
 	ld [hSerialState], a
 	ld a, [hMasterSlave]
@@ -964,7 +966,7 @@ Call_000_0b10:
 HandleState28::
 	ld a, IEF_VBLANK
 	ld [rIE], a
-	ld a, [hLineClearStage]
+	ld a, [hRowToShift]
 	and a
 	jr nz, jr_000_0b66
 
@@ -1371,7 +1373,7 @@ jr_000_0d36:
 	jr nz, jr_000_0d31
 
 	ld a, $02
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ld [$ff00+$d4], a
 	xor a
 	ld [$ff00+$d3], a
@@ -1412,7 +1414,7 @@ jr_000_0d77:
 	ld c, $43
 	call Call_000_11a3
 	xor a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ld a, [$ff00+$d1]
 	cp $aa
 	ld a, $1e

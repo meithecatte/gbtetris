@@ -8,13 +8,15 @@ DMA_Routine::
 	ret
 DMA_Routine_End:
 
+; Update the shadow OAM using a sprite list.
 ; hl = sprite list pointer
+; Clobbers all registers
 UpdateSprites::
 	ld a, h
 	ld [hSpriteListPtrHi], a
 	ld a, l
 	ld [hSpriteListPtrLo], a
-	ld a, [hl]
+	ld a, [hl] ; SPRITE_OFFSET_VISIBILITY
 	and a
 	jr z, .handle_visible_sprite
 
@@ -22,12 +24,14 @@ UpdateSprites::
 	jr z, .handle_hidden_sprite
 
 .handle_loop:
+	; point HL to the next sprite list entry
 	ld a, [hSpriteListPtrHi]
 	ld h, a
 	ld a, [hSpriteListPtrLo]
 	ld l, a
 	ld de, SPRITE_SIZE
 	add hl, de
+
 	ld a, [hSpriteCount]
 	dec a
 	ld [hSpriteCount], a
@@ -40,11 +44,12 @@ UpdateSprites::
 	jr .handle_loop
 
 .handle_hidden_sprite:
+	assert SPRITE_HIDDEN != 0
 	ld [hSpriteHidden], a
 
 .handle_visible_sprite:
 	ld b, SPRITE_INFO_SIZE
-	ld de, hCurSpriteBuffer ; could use C as the pointer, would be shorter
+	ld de, hCurSpriteBuffer ; could use C as the pointer, would be shorter and faster
 
 .copy_entry:
 	ld a, [hl+]
@@ -57,33 +62,45 @@ UpdateSprites::
 	ld hl, SpriteDescriptorPointers
 	rlca ; add de twice instead to get greater range for free
 	ld e, a
-	ld d, $00
+	ld d, 0
 	add hl, de
-	ld e, [hl] ; could load into HL again and get free increments later (see rst $28 comment)
+	ld e, [hl]
 	inc hl
 	ld d, [hl]
 
+	; load object list pointer
 	ld a, [de]
 	ld l, a
 	inc de
 	ld a, [de]
 	ld h, a
 	inc de
+
+	; load anchor coordinates
 	ld a, [de]
 	ld [hSpriteAnchorY], a
 	inc de
 	ld a, [de]
 	ld [hSpriteAnchorX], a
+
+	; load dimension descriptor pointer
 	ld e, [hl]
 	inc hl
-	ld d, [hl] ; in the loop,
+	ld d, [hl]
+	; inc hl ; not needed since .object_loop moves the pointer at the beginning
+	; instead of the end
+
+	; in .object_loop,
 	; HL = object list pointer
 	; DE = dimension descriptor pointer
 
 .object_loop:
+	; move to the next object
 	inc hl
+
 	ld a, [hCurSpriteFlags]
-	ld [hSpriteFlags], a
+	ld [hObjectFlags], a
+
 	ld a, [hl]
 	cp $ff
 	jr z, .finished_handling
@@ -93,10 +110,10 @@ UpdateSprites::
 
 	ld a, [hCurSpriteFlags]
 	xor OAMF_XFLIP
-	ld [hSpriteFlags], a
+	ld [hObjectFlags], a
 	inc hl
 	ld a, [hl]
-	jr .not_magic
+	jr .got_sprite_id
 
 .empty_spot:
 	inc de
@@ -107,7 +124,7 @@ UpdateSprites::
 	cp $fe
 	jr z, .empty_spot
 
-.not_magic:
+.got_sprite_id:
 	ld [hCurSpriteID], a
 	ld a, [hCurSpriteY]
 	ld b, a
@@ -133,7 +150,7 @@ UpdateSprites::
 	sbc 8
 
 .got_y:
-	ld [hSpriteY], a
+	ld [hObjectY], a
 	ld a, [hCurSpriteX]
 	ld b, a
 	inc de
@@ -160,7 +177,7 @@ UpdateSprites::
 	sbc 8
 
 .got_x:
-	ld [hSpriteX], a
+	ld [hObjectX], a
 	push hl
 	ld a, [hOAMBufferPtrHi]
 	ld h, a
@@ -174,15 +191,15 @@ UpdateSprites::
 	jr .done_hiding
 
 .real_y:
-	ld a, [hSpriteY]
+	ld a, [hObjectY]
 
 .done_hiding:
 	ld [hl+], a
-	ld a, [hSpriteX]
+	ld a, [hObjectX]
 	ld [hl+], a
 	ld a, [hCurSpriteID]
 	ld [hl+], a
-	ld a, [hSpriteFlags]
+	ld a, [hObjectFlags]
 	ld b, a
 	ld a, [hCurSpriteFlip]
 	or b
@@ -204,180 +221,70 @@ SpriteDescriptorPointers::
 	dw SpriteO0, SpriteO1, SpriteO2, SpriteO3 ; JUST REFER TO THE SAME SPRITE FOUR TIMES ALREADY
 	dw SpriteZ0, SpriteZ1, SpriteZ2, SpriteZ3
 	dw SpriteS0, SpriteS1, SpriteS2, SpriteS3
-	dw SpriteT0, SpriteT1, SpriteT2, SpriteT3
+	; shift the cycle to start pointing down
+	dw SpriteT2, SpriteT3, SpriteT0, SpriteT1
 	dw SpriteTypeA, SpriteTypeB, SpriteTypeC, SpriteOff
 	dw SpriteDigit0, SpriteDigit1, SpriteDigit2, SpriteDigit3, SpriteDigit4
 	dw SpriteDigit5, SpriteDigit6, SpriteDigit7, SpriteDigit8, SpriteDigit9
 
 INCBIN "baserom.gb", $2c00, $2c68 - $2c00
 
-SpriteL0::
-	dw SpriteL0Objects
-	db -17, -16
+sprite_descriptor: MACRO
+\1::
+	dw \1Objects
+	db \2, \3
+ENDM
 
-SpriteL1::
-	dw SpriteL1Objects
-	db -17, -16
+	sprite_descriptor SpriteL0, -17, -16
+	sprite_descriptor SpriteL1, -17, -16
+	sprite_descriptor SpriteL2, -17, -16
+	sprite_descriptor SpriteL3, -17, -16
 
-SpriteL2::
-	dw SpriteL2Objects
-	db -17, -16
+	sprite_descriptor SpriteJ0, -17, -16
+	sprite_descriptor SpriteJ1, -17, -16
+	sprite_descriptor SpriteJ2, -17, -16
+	sprite_descriptor SpriteJ3, -17, -16
 
-SpriteL3::
-	dw SpriteL3Objects
-	db -17, -16
+	sprite_descriptor SpriteI0, -17, -16
+	sprite_descriptor SpriteI1, -17, -16
+	sprite_descriptor SpriteI2, -17, -16
+	sprite_descriptor SpriteI3, -17, -16
 
-SpriteJ0::
-	dw SpriteJ0Objects
-	db -17, -16
+	sprite_descriptor SpriteO0, -17, -16
+	sprite_descriptor SpriteO1, -17, -16
+	sprite_descriptor SpriteO2, -17, -16
+	sprite_descriptor SpriteO3, -17, -16
 
-SpriteJ1::
-	dw SpriteJ1Objects
-	db -17, -16
+	sprite_descriptor SpriteZ0, -17, -16
+	sprite_descriptor SpriteZ1, -17, -16
+	sprite_descriptor SpriteZ2, -17, -16
+	sprite_descriptor SpriteZ3, -17, -16
 
-SpriteJ2::
-	dw SpriteJ2Objects
-	db -17, -16
+	sprite_descriptor SpriteS0, -17, -16
+	sprite_descriptor SpriteS1, -17, -16
+	sprite_descriptor SpriteS2, -17, -16
+	sprite_descriptor SpriteS3, -17, -16
 
-SpriteJ3::
-	dw SpriteJ3Objects
-	db -17, -16
+	sprite_descriptor SpriteT2, -17, -16
+	sprite_descriptor SpriteT3, -17, -16
+	sprite_descriptor SpriteT0, -17, -16
+	sprite_descriptor SpriteT1, -17, -16
 
-SpriteI0::
-	dw SpriteI0Objects
-	db -17, -16
+	sprite_descriptor SpriteTypeA, 0, -24
+	sprite_descriptor SpriteTypeB, 0, -24
+	sprite_descriptor SpriteTypeC, 0, -24
+	sprite_descriptor SpriteOff, 0, -24
 
-SpriteI1::
-	dw SpriteI1Objects
-	db -17, -16
-
-SpriteI2::
-	dw SpriteI2Objects
-	db -17, -16
-
-SpriteI3::
-	dw SpriteI3Objects
-	db -17, -16
-
-SpriteO0::
-	dw SpriteO0Objects
-	db -17, -16
-
-SpriteO1::
-	dw SpriteO1Objects
-	db -17, -16
-
-SpriteO2::
-	dw SpriteO2Objects
-	db -17, -16
-
-SpriteO3::
-	dw SpriteO3Objects
-	db -17, -16
-
-SpriteZ0::
-	dw SpriteZ0Objects
-	db -17, -16
-
-SpriteZ1::
-	dw SpriteZ1Objects
-	db -17, -16
-
-SpriteZ2::
-	dw SpriteZ2Objects
-	db -17, -16
-
-SpriteZ3::
-	dw SpriteZ3Objects
-	db -17, -16
-
-SpriteS0::
-	dw SpriteS0Objects
-	db -17, -16
-
-SpriteS1::
-	dw SpriteS1Objects
-	db -17, -16
-
-SpriteS2::
-	dw SpriteS2Objects
-	db -17, -16
-
-SpriteS3::
-	dw SpriteS3Objects
-	db -17, -16
-
-SpriteT0::
-	dw SpriteT2Objects ; shift the cycle to start pointing down
-	db -17, -16
-
-SpriteT1::
-	dw SpriteT3Objects
-	db -17, -16
-
-SpriteT2::
-	dw SpriteT0Objects
-	db -17, -16
-
-SpriteT3::
-	dw SpriteT1Objects
-	db -17, -16
-
-SpriteTypeA::
-	dw SpriteTypeAObjects
-	db 0, -24
-
-SpriteTypeB::
-	dw SpriteTypeBObjects
-	db 0, -24
-
-SpriteTypeC::
-	dw SpriteTypeCObjects
-	db 0, -24
-
-SpriteOff::
-	dw SpriteOffObjects
-	db 0, -24
-
-SpriteDigit0::
-	dw SpriteDigit0Objects
-	db 0, 0
-
-SpriteDigit1::
-	dw SpriteDigit1Objects
-	db 0, 0
-
-SpriteDigit2::
-	dw SpriteDigit2Objects
-	db 0, 0
-
-SpriteDigit3::
-	dw SpriteDigit3Objects
-	db 0, 0
-
-SpriteDigit4::
-	dw SpriteDigit4Objects
-	db 0, 0
-
-SpriteDigit5::
-	dw SpriteDigit5Objects
-	db 0, 0
-
-SpriteDigit6::
-	dw SpriteDigit6Objects
-	db 0, 0
-
-SpriteDigit7::
-	dw SpriteDigit7Objects
-	db 0, 0
-
-SpriteDigit8::
-	dw SpriteDigit8Objects
-	db 0, 0
-
-SpriteDigit9::
-	dw SpriteDigit9Objects
-	db 0, 0
+	sprite_descriptor SpriteDigit0, 0, 0
+	sprite_descriptor SpriteDigit1, 0, 0
+	sprite_descriptor SpriteDigit2, 0, 0
+	sprite_descriptor SpriteDigit3, 0, 0
+	sprite_descriptor SpriteDigit4, 0, 0
+	sprite_descriptor SpriteDigit5, 0, 0
+	sprite_descriptor SpriteDigit6, 0, 0
+	sprite_descriptor SpriteDigit7, 0, 0
+	sprite_descriptor SpriteDigit8, 0, 0
+	sprite_descriptor SpriteDigit9, 0, 0
 
 INCBIN "baserom.gb", $2d10, $2da0 - $2d10
 
@@ -591,7 +498,7 @@ SpriteTypeCObjects::
 
 SpriteOffObjects::
 	dw SpriteDimHorizontal
-	db " OFF  ", $ff ; you could just introduce an offset in SpriteOff instead of these spaces...
+	db " OFF  ", $ff ; you could just move the anchor instead of using spaces...
 
 SpriteDigit0Objects::
 	dw SpriteDimHorizontal

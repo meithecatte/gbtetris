@@ -18,9 +18,9 @@ hCurSpriteFlip       EQU hCurSpriteBuffer + 5
 hCurSpriteFlags      EQU hCurSpriteBuffer + 6
 hSpriteAnchorY   EQU $ff90
 hSpriteAnchorX   EQU $ff91
-hSpriteX         EQU $ff92
-hSpriteY         EQU $ff93
-hSpriteFlags     EQU $ff94
+hObjectX         EQU $ff92
+hObjectY         EQU $ff93
+hObjectFlags     EQU $ff94
 hSpriteHidden    EQU $ff95
 hSpriteListPtrHi EQU $ff96
 hSpriteListPtrLo EQU $ff97
@@ -79,7 +79,7 @@ hRecvBuffer      EQU $ffd0
 hSeenNonZero EQU $ffe0
 
 hGameState        EQU $ffe1
-hLineClearStage        EQU $ffe3
+hRowToShift       EQU $ffe3
 hDemoNumber       EQU $ffe4
 hFastDropDistance EQU $ffe5
 

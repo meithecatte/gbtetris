@@ -61,7 +61,7 @@ LoadTitlescreen::
 	ld [hCollisionOccured_NeverRead], a
 	ld [hFailedTetrominoPlacements], a
 	ld [$ff00+$9f], a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC

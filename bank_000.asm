@@ -15,7 +15,7 @@ SECTION "rst28", ROM0[$28]
 	add a
 	pop hl
 	ld e, a
-	ld d, $00
+	ld d, 0
 	add hl, de ; do this twice instead of add a at the beginning for increased range
 
 	ld e, [hl] ; better:
@@ -466,10 +466,10 @@ jr_000_0fcd:
 
 Call_000_0fd3:
 	call DisableLCD
-	ld hl, $55f4
+	ld hl, ShuttleGFX
 	ld bc, $1000
 	call Call_000_2838
-	call $27e9
+	call ClearTilemapA
 	ld hl, $9800
 	ld de, $552c
 	ld b, $04
@@ -794,7 +794,7 @@ HandleState31::
 	ld b, $27
 	ld c, $79
 	call Call_000_11a3
-	call $7ff3
+	call JumpResetAudio
 	ld a, [$ff00+$d7]
 	cp $05
 	jr z, jr_000_119e
@@ -857,11 +857,11 @@ HandleState38::
 	ld hl, $9ce6
 	ld de, $147f
 	ld b, $07
-	call Call_000_149b
+	call CopyVerticalStrip
 	ld hl, $9ce7
 	ld de, $1486
 	ld b, $07
-	call Call_000_149b
+	call CopyVerticalStrip
 	ld hl, $9d08
 	ld [hl], $72
 	inc l
@@ -871,7 +871,7 @@ HandleState38::
 	inc l
 	ld [hl], $b8
 	ld de, $27c5
-	ld hl, $c200
+	ld hl, wSpriteList
 	ld c, 3
 	call LoadSprites
 	ld a, $03
@@ -889,23 +889,23 @@ HandleState38::
 
 Call_000_1216:
 	call DisableLCD
-	ld hl, $55f4
+	ld hl, ShuttleGFX
 	ld bc, $1000
 	call Call_000_2838
-	ld hl, $9fff
+	ld hl, vBGMapB + BG_MAP_WIDTH * BG_MAP_HEIGHT - 1
 	call ClearTilemap
 	ld hl, $9dc0
-	ld de, $520c
-	ld b, $04
+	ld de, LaunchpadTilemap
+	ld b, 4
 	call CopyRowsToTilemap
 	ld hl, $9cec
 	ld de, $148d
-	ld b, $07
-	call Call_000_149b
+	ld b, 7
+	call CopyVerticalStrip
 	ld hl, $9ced
 	ld de, $1494
-	ld b, $07
-	call Call_000_149b
+	ld b, 7
+	call CopyVerticalStrip
 	ret
 
 HandleState39::
@@ -913,10 +913,10 @@ HandleState39::
 	and a
 	ret nz
 
-	ld hl, $c210
-	ld [hl], $00
-	ld l, $20
-	ld [hl], $00
+	ld hl, wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY
+	ld [hl], SPRITE_VISIBLE
+	ld l, LOW(wSpriteList sprite 2 + SPRITE_OFFSET_VISIBILITY)
+	ld [hl], SPRITE_VISIBLE
 	ld a, $ff
 	ld [hDelayCounter], a
 	ld a, $28
@@ -1258,7 +1258,7 @@ jr_000_1443:
 HandleState51::
 	call DisableLCD
 	call LoadTileset
-	call $7ff3
+	call JumpResetAudio
 	call ClearedLinesListReset
 	ld a, $93
 	ld [rLCDC], a
@@ -1320,8 +1320,14 @@ jr_000_1470:
 	ld [hl], h
 	ld [hl], h
 
-Call_000_149b:
-jr_000_149b:
+; Arrange a list of tiles vertically on the tilemap
+; Input:
+;   B = tile count
+;   DE = tile list pointer
+;   HL = tilemap pointer
+; Output: none
+; Clobbers A, B, DE, and HL
+CopyVerticalStrip::
 	ld a, [de]
 	ld [hl], a
 	inc de
@@ -1330,8 +1336,7 @@ jr_000_149b:
 	add hl, de
 	pop de
 	dec b
-	jr nz, jr_000_149b
-
+	jr nz, CopyVerticalStrip
 	ret
 
 INCLUDE "menus.asm"
@@ -1398,7 +1403,7 @@ LoadPlayfield::
 	call Call_000_204d
 	call ResetGameplayVariablesMaybe
 	xor a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 IF !DEF(INTERNATIONAL)
 	ld [$ff00+$e7], a
 ENDC
@@ -1444,10 +1449,10 @@ ENDC
 jr_000_1ad7:
 	ld hl, wSpriteList sprite 0
 	ld de, CurrentTetriminoSpriteDescriptor
-	call LoadGameplaySprite
+	call LoadSingleSprite
 	ld hl, wSpriteList sprite 1
-	ld de, NextTetrominoSpriteDescriptor
-	call LoadGameplaySprite
+	ld de, NextTetrominoSpriteList
+	call LoadSingleSprite
 	ld hl, $9951
 	ld a, [hGameType]
 	cp GAME_TYPE_B
@@ -1969,7 +1974,7 @@ HandleState4::
 
 jr_000_1d6a:
 	xor a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, $16
@@ -2022,12 +2027,12 @@ jr_000_1dbd:
 jr_000_1dc1:
 	ld a, $80
 	ld [hDelayCounter], a
-	ld a, $80
-	ld [$c200], a
-	ld [$c210], a
+	ld a, SPRITE_HIDDEN
+	ld [wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
 	call UpdateCurrentTetromino
 	call UpdateNextTetromino
-	call $7ff3
+	call JumpResetAudio
 	ld a, $25
 	ld [$ff00+$9e], a
 	ld a, $0b
@@ -2278,7 +2283,7 @@ jr_000_1ef0:
 	call AddBCD
 	ld de, $c0c4
 	ld hl, $99a5
-	call Call_000_2a7e
+	call LazyDisplayThreeByteBCD
 	xor a
 	ld [hDelayCounter], a
 	pop de
@@ -2286,7 +2291,7 @@ jr_000_1ef0:
 	call AddBCD
 	ld de, $c0a2
 	ld hl, $9a25
-	call Call_000_2a82
+	call DisplayBCD_ThreeBytes
 	ld a, PULSESFX_CONFIRM_BEEP
 	ld [wPlayPulseSFX], a
 	ret
@@ -2356,11 +2361,11 @@ HandleState13::
 	ld a, " "
 	call FillPlayfieldWithTileAndDoSomethingElseImNotSure
 	ld hl, $c843
-	ld de, $2992
+	ld de, GameoverTilemap
 	ld c, 7
 	call Copy8TilesWide
 	ld hl, $c983
-	ld de, $29ca
+	ld de, PleaseTryAgainTilemap
 	ld c, 6
 	call Copy8TilesWide
 	ld a, [hGameType]
@@ -2429,7 +2434,7 @@ Call_000_1fec:
 	and a
 	ret nz
 
-	ld a, [hLineClearStage]
+	ld a, [hRowToShift]
 	cp $05
 	ret nz
 
@@ -2479,7 +2484,7 @@ jr_000_2024:
 FillPlayfieldWithTileAndDoSomethingElseImNotSure::
 	push af
 	ld a, $02
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	pop af
 	; fallthrough
 FillPlayfieldWithTile::
@@ -2634,7 +2639,7 @@ Gameplay_HoldingDown:
 	and a
 	jr nz, HandleGravity.end
 
-	ld a, [hLineClearStage]
+	ld a, [hRowToShift]
 	and a
 	jr nz, HandleGravity.end
 
@@ -2667,7 +2672,7 @@ HandleGravity::
 	cp LOCKDOWN_STAGE_BLINK
 	ret z
 
-	ld a, [hLineClearStage]
+	ld a, [hRowToShift]
 	and a
 	ret nz
 
@@ -2830,7 +2835,7 @@ LookForFullLines::
 	jr z, .type_b
 
 IF !DEF(INTERNATIONAL)
-	ld a, [$ff00+$e7]
+	ld a, [$ff00+$e7] ; TODO
 	add b
 	ld [$ff00+$e7], a
 ENDC
@@ -2845,17 +2850,16 @@ ENDC
 	ld [hl], a
 	jr nc, .line_count_done
 
-	ld [hl], $99
+	ld [hl], $99 ; cap at 9999
 	dec hl
 	ld [hl], $99
 	jr .line_count_done
 
 .type_b:
 	ld a, [hl]
-	or a
+	or a ; useless
 	sub b
 	jr z, .zero_cap
-
 	jr c, .zero_cap
 
 	daa
@@ -2893,7 +2897,6 @@ ENDC
 	ld a, c
 	ld [wPlayPulseSFX], a
 	ret
-
 
 .row_not_full:
 	pop hl
@@ -2962,7 +2965,7 @@ VBlank_HandleLineClearBlink::
 	ld a, 13
 	ld [hDelayCounter], a
 	ld a, 1
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 
 .finish_lockdown:
 	assert LOCKDOWN_STAGE_IDLE == 0
@@ -3000,19 +3003,24 @@ VBlank_HandleLineClearBlink::
 	call SpawnNewTetromino
 	jr .finish_lockdown
 
-HandleRowShift:
+; If the line clear stage calls for it, loop over every cleared line from the top to the bottom,
+; and shift every line above it down by one. Finally, the very top line is cleared.
+; Input: none
+; Output: none
+; Clobberss all registers
+HandleRowShift::
 	ld a, [hDelayCounter]
 	and a
 	ret nz
 
-	ld a, [hLineClearStage]
-	cp LINECLEAR_STAGE_01
+	ld a, [hRowToShift]
+	cp 1
 	ret nz
 
 	ld de, wClearedLinesList
 	ld a, [de]
 
-jr_000_22ba:
+.cleared_line_loop:
 	ld h, a
 	inc de
 	ld a, [de]
@@ -3024,16 +3032,16 @@ jr_000_22ba:
 	add hl, bc
 	pop de
 
-jr_000_22c5:
+.screen_line_loop:
 	push hl
 	ld b, PLAYFIELD_WIDTH
 
-jr_000_22c8:
+.tile_copy_loop:
 	ld a, [hl+]
 	ld [de], a
 	inc de
 	dec b
-	jr nz, jr_000_22c8
+	jr nz, .tile_copy_loop
 
 	pop hl
 	push hl
@@ -3042,28 +3050,27 @@ jr_000_22c8:
 	add hl, bc
 	ld a, h
 	cp HIGH(wTileMap) - 1
-	jr nz, jr_000_22c5
+	jr nz, .screen_line_loop
 
 	pop de
 	inc de
 	ld a, [de]
 	and a
-	jr nz, jr_000_22ba
+	jr nz, .cleared_line_loop
 
 	coord hl, wTileMap, 2, 0
 	ld a, " "
 	ld b, PLAYFIELD_WIDTH
 
-jr_000_22e7:
+.clear_loop:
 	ld [hl+], a
 	dec b
-	jr nz, jr_000_22e7
+	jr nz, .clear_loop
 
 	call ClearedLinesListReset
-	ld a, $02
-	ld [hLineClearStage], a
+	ld a, 2
+	ld [hRowToShift], a
 	ret
-
 
 ClearedLinesListReset::
 	ld hl, wClearedLinesList
@@ -3075,236 +3082,90 @@ ClearedLinesListReset::
 	jr nz, .loop
 	ret
 
-
-Call_000_22fe:
-	ld a, [hLineClearStage]
-	cp $02
+rowshift: MACRO
+ShiftRow\1::
+	ld a, [hRowToShift]
+	cp \1
 	ret nz
 
-	ld hl, $9a22
-	ld de, $ca22
-	call Call_000_2506
+	coord hl, vBGMapA, 2, 19 - \1
+	coord de, wTileMap, 2, 19 - \1
+	call ShiftRow
+ENDM
+
+justrowshift: MACRO
+	rowshift \1
 	ret
+ENDM
 
+	justrowshift 2
+	justrowshift 3
+	justrowshift 4
+	justrowshift 5
+	justrowshift 6
+	justrowshift 7
 
-Call_000_230d:
-	ld a, [hLineClearStage]
-	cp $03
-	ret nz
-
-	ld hl, $9a02
-	ld de, $ca02
-	call Call_000_2506
-	ret
-
-
-Call_000_231c:
-	ld a, [hLineClearStage]
-	cp $04
-	ret nz
-
-	ld hl, $99e2
-	ld de, $c9e2
-	call Call_000_2506
-	ret
-
-
-Call_000_232b:
-	ld a, [hLineClearStage]
-	cp $05
-	ret nz
-
-	ld hl, $99c2
-	ld de, $c9c2
-	call Call_000_2506
-	ret
-
-
-Call_000_233a:
-	ld a, [hLineClearStage]
-	cp $06
-	ret nz
-
-	ld hl, $99a2
-	ld de, $c9a2
-	call Call_000_2506
-	ret
-
-
-Call_000_2349:
-	ld a, [hLineClearStage]
-	cp $07
-	ret nz
-
-	ld hl, $9982
-	ld de, $c982
-	call Call_000_2506
-	ret
-
-
-Call_000_2358:
-	ld a, [hLineClearStage]
-	cp $08
-	ret nz
-
-	ld hl, $9962
-	ld de, $c962
-	call Call_000_2506
+	rowshift 8
 	ld a, [hMultiplayer]
 	and a
 	ld a, [hGameState]
-	jr nz, jr_000_2375
+	jr nz, .multiplayer
 
 	and a
 	ret nz
 
-jr_000_236f:
-	ld a, $01
-	ld [$dff8], a
+.end:
+	ld a, NOISESFX_LINE_REMOVED
+	ld [wPlayNoiseSFX], a
 	ret
 
-
-jr_000_2375:
-	cp $1a
+.multiplayer:
+	cp STATE_26
 	ret nz
 
 	ld a, [$ff00+$d4]
 	and a
-	jr z, jr_000_236f
+	jr z, .end
 
 	ld a, $05
 	ld [wPlayPulseSFX], a
 	ret
 
+	justrowshift 9
+	justrowshift 10
+	justrowshift 11
+	justrowshift 12
+	justrowshift 13
+	justrowshift 14
+	justrowshift 15
 
-Call_000_2383:
-	ld a, [hLineClearStage]
-	cp $09
-	ret nz
-
-	ld hl, $9942
-	ld de, $c942
-	call Call_000_2506
+	rowshift 16
+	call Call_000_24ab ; why no TCO?
 	ret
 
-
-Call_000_2392:
-	ld a, [hLineClearStage]
-	cp $0a
-	ret nz
-
-	ld hl, $9922
-	ld de, $c922
-	call Call_000_2506
-	ret
-
-
-Call_000_23a1:
-	ld a, [hLineClearStage]
-	cp $0b
-	ret nz
-
-	ld hl, $9902
-	ld de, $c902
-	call Call_000_2506
-	ret
-
-
-Call_000_23b0:
-	ld a, [hLineClearStage]
-	cp $0c
-	ret nz
-
-	ld hl, $98e2
-	ld de, $c8e2
-	call Call_000_2506
-	ret
-
-
-Call_000_23bf:
-	ld a, [hLineClearStage]
-	cp $0d
-	ret nz
-
-	ld hl, $98c2
-	ld de, $c8c2
-	call Call_000_2506
-	ret
-
-
-Call_000_23ce:
-	ld a, [hLineClearStage]
-	cp $0e
-	ret nz
-
-	ld hl, $98a2
-	ld de, $c8a2
-	call Call_000_2506
-	ret
-
-
-Call_000_23dd:
-	ld a, [hLineClearStage]
-	cp $0f
-	ret nz
-
-	ld hl, $9882
-	ld de, $c882
-	call Call_000_2506
-	ret
-
-
-Call_000_23ec:
-	ld a, [hLineClearStage]
-	cp $10
-	ret nz
-
-	ld hl, $9862
-	ld de, $c862
-	call Call_000_2506
-	call Call_000_24ab
-	ret
-
-
-Call_000_23fe:
-	ld a, [hLineClearStage]
-	cp $11
-	ret nz
-
-	ld hl, $9842
-	ld de, $c842
-	call Call_000_2506
-	ld hl, $9c6d
+	rowshift 17
+	coord hl, vBGMapB, 13, 3
 	call RenderScore
-	ld a, $01
+	ld a, 1
 	ld [$ff00+$e0], a
 	ret
 
-
-Call_000_2417:
-	ld a, [hLineClearStage]
-	cp $12
-	ret nz
-
-	ld hl, $9822
-	ld de, $c822
-	call Call_000_2506
-	ld hl, $986d
-	call RenderScore
+	rowshift 18
+	coord hl, vBGMapA, 13, 3
+	call RenderScore ; why no TCO?
 	ret
 
-
-Call_000_242c:
-	ld a, [hLineClearStage]
-	cp $13
+ShiftRow19::
+	ld a, [hRowToShift]
+	cp 19
 	ret nz
 
-	ld [wDidntUseFastDropOnThisPiece], a
-	ld hl, $9802
-	ld de, $c802
-	call Call_000_2506
+	ld [wDidntUseFastDropOnThisPiece], a ; redundant - already set by HandleGravity
+	coord hl, vBGMapA, 2, 0
+	coord de, wTileMap, 2, 0
+	call ShiftRow
 	xor a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ld a, [hMultiplayer]
 	and a
 	ld a, [hGameState]
@@ -3314,26 +3175,24 @@ Call_000_242c:
 	ret nz
 
 .unk2449:
-	ld hl, $994e
-	ld de, $ff9f
-	ld c, $02
-	ld a, [$ff00+$c0]
-	cp $37
-	jr z, .unk245f
-
-	ld hl, $9950
-	ld de, $ff9e
-	ld c, $01
-
-.unk245f:
+	coord hl, vBGMapA, 14, 10
+	ld de, hLineCount + 1
+	ld c, 2
+	ld a, [hGameType]
+	cp GAME_TYPE_A
+	jr z, .got_line_count_display_params
+	coord hl, vBGMapA, 16, 10
+	ld de, hLineCount
+	ld c, 1
+.got_line_count_display_params:
 	call DisplayBCD
-	ld a, [$ff00+$c0]
-	cp $37
-	jr z, .unk248b
+	ld a, [hGameType]
+	cp GAME_TYPE_A
+	jr z, .normal
 
-	ld a, [$ff00+$9e]
+	ld a, [hLineCount]
 	and a
-	jr nz, .unk248b
+	jr nz, .normal
 
 	ld a, 100
 	ld [hDelayCounter], a
@@ -3341,23 +3200,22 @@ Call_000_242c:
 	ld [wPlaySong], a
 	ld a, [hMultiplayer]
 	and a
-	jr z, .unk247e
+	jr z, .singleplayer
 
 	ld [$ff00+$d5], a
 	ret
 
-.unk247e:
-	ld a, [$ff00+$c3]
-	cp $09
+.singleplayer:
+	ld a, [hTypeBLevel]
+	cp 9
 	ld a, STATE_05
-	jr nz, .unk2488
+	jr nz, .got_new_state
 	ld a, STATE_34
-.unk2488:
+.got_new_state:
 	ld [hGameState], a
 	ret
 
-
-.unk248b:
+.normal:
 	call SpawnNewTetromino
 	ret
 
@@ -3386,22 +3244,47 @@ RenderScore::
 	ret nz
 
 	ld de, wScore + SCORE_SIZE - 1
-	call Call_000_2a7e ; why no TCO?
+	call LazyDisplayThreeByteBCD ; why no TCO?
 	ret
 
 
 Call_000_24ab:
 	ld a, [hGameState]
+	assert STATE_GAMEPLAY == 0
 	and a
 	ret nz
 
-	ld a, [$ff00+$c0]
-	cp $37
+	ld a, [hGameType]
+	cp GAME_TYPE_A
 	ret nz
 
-	ld hl, $ffa9
+	ld hl, hLevel
 	ld a, [hl]
-	cp $09
+
+IF DEF(INTERNATIONAL)
+	cp 20
+	ret z
+
+	call LevelToBCD
+	ld a, [$ff00+$9f]
+	ld d, a
+	and $f0
+	ret nz
+	ld a, d
+	and $0f
+	swap a
+	ld d, a
+	ld a, [$ff00+$9e]
+	and $f0
+	swap a
+	or d
+	cp b
+	ret c
+	ret z
+	inc [hl]
+	call LevelToBCD
+ELSE
+	cp 9
 	jr nc, jr_000_24fd
 
 	ld a, [$ff00+$e7]
@@ -3434,6 +3317,7 @@ jr_000_24cf:
 
 jr_000_24d7:
 	ld b, a
+ENDC
 	and $0f
 	ld c, a
 	ld hl, $98f1
@@ -3456,38 +3340,55 @@ jr_000_24de:
 	jr jr_000_24de
 
 jr_000_24f4:
+IF DEF(INTERNATIONAL)
+	ld a, PULSESFX_LEVELUP
+ELSE
 	ld a, PULSESFX_CONFIRM_BEEP
+ENDC
 	ld [wPlayPulseSFX], a
 	call Call_000_1b43 ; why no TCO?
 	ret
 
+IF !DEF(INTERNATIONAL)
 jr_000_24fd:
-IF DEF(INTERNATIONAL)
-	rept 6
-	nop
-	endr
-ENDC
 	ld a, [$ff00+$e7]
 	cp $14
 	ret c
 
 	sub $14
 	jr jr_000_24c3
+ELSE
+LevelToBCD::
+	ld a, [hl]
+	ld b, a ; this can be done below
+	and a
+	ret z
+	xor a
+.loop:
+	or a
+	inc a
+	daa
+	dec b
+	jr z, .skip ; why not jr nz?
+	jr .loop
+.skip:
+	ld b, a
+	ret
+ENDC
 
-Call_000_2506:
-	ld b, $0a
-
-jr_000_2508:
+ShiftRow::
+	ld b, PLAYFIELD_WIDTH
+.loop:
 	ld a, [de]
 	ld [hl], a
 	inc l
 	inc e
 	dec b
-	jr nz, jr_000_2508
+	jr nz, .loop
 
-	ld a, [hLineClearStage]
+	ld a, [hRowToShift]
 	inc a
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ret
 
 ; If the player has pressed left or right, and the current position allows such movement, move the
@@ -3770,7 +3671,7 @@ jr_000_2650:
 	ld hl, $0023
 	add hl, bc
 	pop de
-	call Call_000_2a82
+	call DisplayBCD_ThreeBytes
 	pop de
 	ld a, [$ff00+$c3]
 	ld b, a
@@ -3792,7 +3693,7 @@ jr_000_266c:
 jr_000_267a:
 	ld de, $c0a2
 	ld hl, $9a25
-	call Call_000_2a82
+	call DisplayBCD_ThreeBytes
 	ld a, $02
 	ld [wPlayPulseSFX], a
 	xor a
@@ -3894,24 +3795,28 @@ DrawBlackVerticalStrip::
 	jr nz, .loop
 	ret
 
-; there's no reason not to use LoadSprites, apart from the free EI
-LoadGameplaySprite:
+; Copy a single sprite descriptor terminated by $ff
+; Input:
+; DE = pointer to the sprite descriptor in ROM
+; HL = pointer to the wSpriteList entry to be filled
+; Clobbers A, DE, HL
+LoadSingleSprite::
 	ld a, [de]
 	cp -1
 	ret z
 
 	ld [hl+], a
 	inc de
-	jr LoadGameplaySprite
+	jr LoadSingleSprite
 	; fallthrough
-EmptyInterrupt:
+EmptyInterrupt::
 	reti
 
 CurrentTetriminoSpriteDescriptor::
-	db SPRITE_VISIBLE, 24, 63, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, -1
+	db SPRITE_VISIBLE, 24, 63, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, $ff
 
-NextTetrominoSpriteDescriptor::
-	db SPRITE_VISIBLE, 128, 143, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, -1
+NextTetrominoSpriteList::
+	db SPRITE_VISIBLE, 128, 143, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, $ff
 
 ModeSelectSpriteList::
 	db SPRITE_VISIBLE, 112, 55, SPRITE_TYPE_A, SPRITE_ABOVE_BG, SPRITE_DONT_FLIP
@@ -4041,7 +3946,7 @@ jr_000_285b:
 jr_000_286e:
 	pop hl
 	ld a, $02
-	ld [hLineClearStage], a
+	ld [hRowToShift], a
 	ret
 
 DisableLCD::
@@ -4062,7 +3967,13 @@ DisableLCD::
 	ld [rIE], a
 	ret
 
-INCBIN "baserom.gb", $288d, $29fa - $288d
+INCBIN "baserom.gb", $288d, $2992 - $288d
+
+GameoverTilemap::
+INCBIN "gfx/gameover_tilemap.bin"
+
+PleaseTryAgainTilemap::
+INCBIN "gfx/please_try_again_tilemap.bin"
 
 INCLUDE "utils.asm"
 INCLUDE "sprites.asm"
@@ -4123,211 +4034,22 @@ INCBIN "gfx/type_b_menu_tilemap.bin"
 VictoryDanceTilemap::
 INCBIN "gfx/victory_dance_tilemap.bin"
 
-INCBIN "baserom.gb", $520b, $525c - $520b
+	db $ff
+
+LaunchpadTilemap::
+INCBIN "gfx/launchpad_tilemap.bin"
 
 MultiplayerMenuTilemap::
 INCBIN "gfx/multiplayer_menu_tilemap.bin"
 
-INCBIN "baserom.gb", $53c4, $6330 - $53c4
+INCBIN "baserom.gb", $53c4, $55f4 - $53c4
 
-DemoDataTypeA::
-	db 0,                 42
-	db D_LEFT,             1
-	db 0,                 29
-	db A_BUTTON,           9
-	db 0,                  7
-	db A_BUTTON,          11
-	db 0,                  3
-	db D_LEFT,             4
-	db 0,                 32
-	db D_LEFT,             6
-	db 0,                 10
-	db D_DOWN,            23
-	db 0,                  6
-	db A_BUTTON,           6
-	db 0,                  4
-	db A_BUTTON,           5
-	db 0,                 30
-	db D_DOWN,            11
-	db 0,                  6
-	db D_DOWN,            28
-	db 0,                 10
-	db D_RIGHT,            8
-	db D_RIGHT + A_BUTTON, 4
-	db A_BUTTON,           2
-	db 0,                  4
-	db A_BUTTON,           6
-	db 0,                  0
-	db D_RIGHT,            6
-	db 0,                  4
-	db D_RIGHT,            5
-	db 0,                 26
-	db D_DOWN,            36
-	db 0,                 21
-	db A_BUTTON,           7
-	db 0,                 32
-	db D_RIGHT,            4
-	db 0,                  5
-	db D_RIGHT,            3
-	db 0,                 13
-	db D_RIGHT,            6
-	db 0,                  3
-	db D_RIGHT,            5
-	db 0,                 37
-	db D_DOWN,            21
-	db 0,                 27
-	db D_RIGHT,            4
-	db 0,                 19
-	db D_DOWN,             3
-	db 0,                 28
-	db D_DOWN,            25
-	db 0,                 26
-	db A_BUTTON,           6
-	db 0,                 10
-	db D_LEFT,             1
-	db 0,                  9
-	db D_LEFT,             2
-	db 0,                 20
-	db D_RIGHT,            3
-	db 0,                 14
-	db D_DOWN,            22
-	db 0,                 10
-	db D_RIGHT,           10
-	db A_BUTTON + D_RIGHT, 6
-	db D_RIGHT,           22
-	db 0,                 19
-	db D_DOWN,            37
-	db 0,                 28
-	db A_BUTTON,           6
-	db 0,                  3
-	db D_LEFT,             2
-	db 0,                 14
-	db D_LEFT,             3
-	db 0,                  4
-	db D_LEFT,             2
-	db 0,                  3
-	db D_LEFT,             5
-	db 0,                 13
-	db D_DOWN,            33
-	db 0,                 19
-	db A_BUTTON,           7
-	db 0,                  5
-	db A_BUTTON,           6
-	db 0,                  4
-	db A_BUTTON,           5
-	db 0,                  6
-	db D_LEFT,             3
-	db 0,                  5
-	db D_LEFT,             2
-	db 0,                 28
-	db D_LEFT,             3
-	db 0,                 14
-	db D_DOWN,            18
-	db 0,                 12
-	db D_RIGHT,            4
-	db 0,                  2
-	db A_BUTTON,           8
-	db 0,                 16
-	db A_BUTTON,           8
-	db 0,                 30
-	db D_DOWN,            25
-	db 0,                 16
-	db D_RIGHT,            3
-	db 0,                  4
-	db D_RIGHT,            5
-	db 0,                 36
-	db D_DOWN,            28
-	db 0,                  5
-	db A_BUTTON,           5
-	db 0,                 17
-	db D_LEFT,             3
-	db 0,                 18
-	db D_DOWN,            32
-	db 0,                 10
-	db D_RIGHT,            1
-	db A_BUTTON + D_RIGHT, 6
-	db A_BUTTON,           0
-	db 0,                  4
-	db D_RIGHT,            4
-	db 0,                  4
-	db D_RIGHT,            3
-	db 0,                  2
-	db D_RIGHT,           25
-	db 0,                  4
-	db D_RIGHT,            7
-	db 0,                 10
-	db 0,                  0
-	db 0,                  0
-	db 0,                  0
+ShuttleGFX::
+INCBIN "gfx/shuttle.trunc.2bpp"
 
-DemoDataTypeB::
-	db 0,                 77
-	db D_LEFT,             8
-	db A_BUTTON + D_LEFT,  6
-	db D_LEFT,            11
-	db 0,                  7
-	db D_LEFT,             6
-	db 0,                100
-	db D_RIGHT,            0
-	db A_BUTTON + D_RIGHT, 6
-	db D_RIGHT,            5
-	db 0,                 47
-	db D_DOWN,            22
-	db 0,                 23
-	db D_LEFT,             5
-	db 0,                  6
-	db D_LEFT,             6
-	db 0,                 16
-	db D_DOWN,            24
-	db 0,                 52
-	db A_BUTTON,           5
-	db 0,                  1
-	db D_RIGHT,           14
-	db A_BUTTON + D_RIGHT, 6
-	db D_RIGHT,           32
-	db 0,                 10
-	db D_DOWN,            10
-	db 0,                 43
-	db D_LEFT,             6
-	db 0,                  6
-	db D_LEFT,             5
-	db 0,                  5
-	db D_LEFT,             6
-	db 0,                 10
-	db D_DOWN,            12
-	db 0,                 10
-	db A_BUTTON,           7
-	db 0,                  2
-	db D_RIGHT,           11
-	db 0,                  5
-	db D_RIGHT,            4
-	db 0,                 13
-	db D_DOWN,            28
-	db 0,                117
-	db A_BUTTON,           6
-	db 0,                 14
-	db D_DOWN,            31
-	db 0,                 26
-	db A_BUTTON,           6
-	db 0,                  0
-	db D_RIGHT,            7
-	db 0,                  5
-	db D_RIGHT,            6
-	db 0,                  4
-	db D_RIGHT,            8
-	db 0,                  3
-	db D_RIGHT,            8
-	db 0,                 12
-	db D_DOWN,            15
-	db 0,                 10
-	db A_BUTTON,           7
-	db 0,                  0
-	db D_RIGHT,           61
-	db 0,                  5
-	db D_DOWN,            31
-REPT 16
-	db 0,                  0
-ENDR
+INCBIN "baserom.gb", $62c4, $6330 - $62c4
+
+INCLUDE "demodata.asm"
 
 DemoRandomness::
 	; type A demo

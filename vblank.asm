@@ -20,24 +20,24 @@ VBlankInterrupt::
 
 .serial_done:
 	call VBlank_HandleLineClearBlink
-	call Call_000_242c
-	call Call_000_2417
-	call Call_000_23fe
-	call Call_000_23ec
-	call Call_000_23dd
-	call Call_000_23ce
-	call Call_000_23bf
-	call Call_000_23b0
-	call Call_000_23a1
-	call Call_000_2392
-	call Call_000_2383
-	call Call_000_2358
-	call Call_000_2349
-	call Call_000_233a
-	call Call_000_232b
-	call Call_000_231c
-	call Call_000_230d
-	call Call_000_22fe
+	call ShiftRow19
+	call ShiftRow18
+	call ShiftRow17
+	call ShiftRow16
+	call ShiftRow15
+	call ShiftRow14
+	call ShiftRow13
+	call ShiftRow12
+	call ShiftRow11
+	call ShiftRow10
+	call ShiftRow9
+	call ShiftRow8
+	call ShiftRow7
+	call ShiftRow6
+	call ShiftRow5
+	call ShiftRow4
+	call ShiftRow3
+	call ShiftRow2
 	call VBlank_TypeBScoringScreen
 	call hOAMDMA
 	call VBlank_HighscoreTilemap

@@ -13,11 +13,11 @@ assert: MACRO
 ENDM
 
 coord: MACRO
-	ld \1, \2 + \4 * BG_MAP_WIDTH + \3
+	ld \1, (\2) + (\4) * BG_MAP_WIDTH + (\3)
 ENDM
 
 coordh: MACRO
-	ld \1, HIGH(\2 + \4 * BG_MAP_WIDTH + \3)
+	ld \1, HIGH((\2) + (\4) * BG_MAP_WIDTH + (\3))
 ENDM
 
 tile EQUS "+ 16 *"

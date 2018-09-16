@@ -118,12 +118,12 @@ Unused_TilemapAddrToSpriteCoord::
 	ld [hCoordConversionX], a
 	ret
 
-Call_000_2a7e:
+LazyDisplayThreeByteBCD:
 	ld a, [$ff00+$e0]
 	and a
 	ret z
 
-Call_000_2a82:
+DisplayBCD_ThreeBytes:
 	ld c, $03
 
 ; Display a BCD value stored LSB-first. Leading zeroes are shown as spaces. Therefore, the number is
