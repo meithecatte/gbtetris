@@ -1447,10 +1447,10 @@ ENDC
 	ld [hl], $27
 
 jr_000_1ad7:
-	ld hl, wSpriteList sprite 0
-	ld de, CurrentTetriminoSpriteDescriptor
+	ld hl, wSpriteList sprite SPRITEPOS_CURRENT_TETROMINO
+	ld de, CurrentTetrominoSpriteList
 	call LoadSingleSprite
-	ld hl, wSpriteList sprite 1
+	ld hl, wSpriteList sprite SPRITEPOS_NEXT_TETROMINO
 	ld de, NextTetrominoSpriteList
 	call LoadSingleSprite
 	ld hl, $9951
@@ -1791,8 +1791,8 @@ jr_000_1c65:
 
 Call_000_1c68:
 	ld a, [hKeysHeld]
-	and $0f
-	cp $0f
+	and A_BUTTON | B_BUTTON | SELECT | START
+	cp A_BUTTON | B_BUTTON | SELECT | START
 	jp z, SoftReset
 
 	ld a, [hDemoNumber]
@@ -1807,9 +1807,9 @@ Call_000_1c68:
 	and a
 	jr nz, .unk1cc5
 
-	ld hl, $ff40
+	ld hl, rLCDC
 	ld a, [$ff00+$ab]
-	xor $01
+	xor 1
 	ld [$ff00+$ab], a
 	jr z, .unk1cb5
 
@@ -1831,7 +1831,7 @@ Call_000_1c68:
 	dec b
 	jr nz, .unk1c9a
 
-	ld a, $80
+	ld a, SPRITE_HIDDEN
 
 .unk1ca8:
 	ld [wSpriteList sprite 1], a
@@ -1948,8 +1948,8 @@ jr_000_1d2e:
 
 HandleGameOver::
 	ld a, SPRITE_HIDDEN
-	ld [wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY], a
-	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite SPRITEPOS_CURRENT_TETROMINO + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite SPRITEPOS_NEXT_TETROMINO + SPRITE_OFFSET_VISIBILITY], a
 	call UpdateCurrentTetromino
 	call UpdateNextTetromino
 	xor a
@@ -2028,8 +2028,8 @@ jr_000_1dc1:
 	ld a, $80
 	ld [hDelayCounter], a
 	ld a, SPRITE_HIDDEN
-	ld [wSpriteList sprite 0 + SPRITE_OFFSET_VISIBILITY], a
-	ld [wSpriteList sprite 1 + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite SPRITEPOS_CURRENT_TETROMINO + SPRITE_OFFSET_VISIBILITY], a
+	ld [wSpriteList sprite SPRITEPOS_NEXT_TETROMINO + SPRITE_OFFSET_VISIBILITY], a
 	call UpdateCurrentTetromino
 	call UpdateNextTetromino
 	call JumpResetAudio
@@ -2539,7 +2539,7 @@ SpawnNewTetromino::
 	inc l
 	ld [hl], INITIAL_TETROMINO_X
 	inc l
-	ld a, [wSpriteList sprite 1 + SPRITE_OFFSET_ID]
+	ld a, [wSpriteList sprite SPRITEPOS_NEXT_TETROMINO + SPRITE_OFFSET_ID]
 	ld [hl], a
 	and $ff ^ SPRITE_ID_ROTATION_MASK
 	ld c, a
@@ -2611,7 +2611,7 @@ SpawnNewTetromino::
 	ld [hNextNextPiece], a
 .end:
 	ld a, e
-	ld [wSpriteList sprite 1 + SPRITE_OFFSET_ID], a
+	ld [wSpriteList sprite SPRITEPOS_NEXT_TETROMINO + SPRITE_OFFSET_ID], a
 	call UpdateNextTetromino ; could do it after the hGravityCounter copy and TCO
 	ld a, [hFallingSpeed]
 	ld [hGravityCounter], a
@@ -3769,7 +3769,7 @@ UpdateCurrentTetromino::
 	ld [hOAMBufferPtrLo], a
 	ld a, HIGH(wOAMBuffer_CurrentPiece)
 	ld [hOAMBufferPtrHi], a
-	ld hl, wSpriteList sprite 0
+	ld hl, wSpriteList sprite SPRITEPOS_CURRENT_TETROMINO
 	call UpdateSprites ; why no TCO?
 	ret
 
@@ -3780,7 +3780,7 @@ UpdateNextTetromino::
 	ld [hOAMBufferPtrLo], a
 	ld a, HIGH(wOAMBuffer_NextPiece)
 	ld [hOAMBufferPtrHi], a
-	ld hl, wSpriteList sprite 1
+	ld hl, wSpriteList sprite SPRITEPOS_NEXT_TETROMINO
 	call UpdateSprites ; why no TCO?
 	ret
 
@@ -3812,7 +3812,7 @@ LoadSingleSprite::
 EmptyInterrupt::
 	reti
 
-CurrentTetriminoSpriteDescriptor::
+CurrentTetrominoSpriteList::
 	db SPRITE_VISIBLE, 24, 63, 0, SPRITE_BELOW_BG, SPRITE_DONT_FLIP, 0, $ff
 
 NextTetrominoSpriteList::

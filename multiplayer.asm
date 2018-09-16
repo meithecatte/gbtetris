@@ -488,7 +488,7 @@ jr_000_08cd:
 	ld c, 10
 	call Copy8TilesWide
 	ld hl, $c200
-	ld de, CurrentTetriminoSpriteDescriptor
+	ld de, CurrentTetrominoSpriteList
 	call LoadSingleSprite
 	ld hl, $c210
 	ld de, NextTetrominoSpriteList

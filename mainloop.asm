@@ -49,14 +49,14 @@ SoftReset:
 	assert rAUDTERM +- 1 == rAUDVOL
 	ld [hl], AUDVOL_MAX
 
-	ld a, $01 ; noop on the cartridge used
+	ld a, 1 ; noop on the cartridge used
 	ld [$2000], a
 
 	ld sp, wStackEnd - 1
 
 	xor a
 	ld hl, wAudioEnd - 1
-	ld b, $00
+	ld b, 0
 .clear_audio:
 	ld [hl-], a
 	dec b
@@ -64,7 +64,7 @@ SoftReset:
 
 	ld hl, $cfff
 	ld c, $10
-	ld b, $00 ; unnecessary
+	ld b, 0 ; unnecessary
 .clear_wram0:
 	ld [hl-], a
 	dec b
