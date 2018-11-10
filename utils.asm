@@ -1,3 +1,5 @@
+; Update hKeysPressed and hKeysHeld.
+; Clobbers A and BC.
 ReadJoypad::
 	ld a, JOYP_DPAD
 	ld [rJOYP], a

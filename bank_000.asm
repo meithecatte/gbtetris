@@ -54,7 +54,8 @@ Boot:
 	jp Init
 
 ; I can't think of a way this could ever be useful. Maybe something to do with the hardware being
-; a moving target in development?
+; a moving target in development? Maybe a simple testcase the programmer used to verify his
+; understanding of the hblank timing?
 Unused_WTF::
 	call SpriteCoordToTilemapAddr ; points hl into the tilemap
 
