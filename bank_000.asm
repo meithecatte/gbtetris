@@ -9,20 +9,20 @@ SECTION "rst8", ROM0[$8]
 	jp Init
 
 SECTION "rst28", ROM0[$28]
+	; Implements the `jumptable` macro. A list of 16-bit code pointers should follow.
 	; A = jumptable entry number
-	; jumptable follows rst instruction
-	; clobbers de, hl and a
+	; Clobbers A, DE and HL
 	add a
 	pop hl
 	ld e, a
 	ld d, 0
 	add hl, de ; do this twice instead of add a at the beginning for increased range
 
-	ld e, [hl] ; better:
+	ld e, [hl] ; could do this part better:
 	inc hl     ; ld a, [hli]
 	ld d, [hl] ; ld h, [hl]
 	push de    ; ld l, a
-	pop hl     ; could easily make this save DE
+	pop hl     ; jp hl
 	jp hl
 
 SECTION "VBlank", ROM0[$40]
@@ -37,6 +37,8 @@ SECTION "Timer", ROM0[$50]
 SECTION "Serial", ROM0[$58]
 	jp SerialInterrupt
 
+; In the japanese version of the game, the serial code is located later in the ROM, and this space
+; is empty.
 IF DEF(INTERNATIONAL)
 	INCLUDE "serial.asm"
 ENDC
@@ -45,7 +47,8 @@ SECTION "Entry Point", ROM0[$100]
 	nop
 	jp Boot
 
-	rept $14E - $104
+; Header set by rgbfix
+	rept $150 - $104
 	db $00
 	endr
 
@@ -57,7 +60,7 @@ Boot:
 ; a moving target in development? Maybe a simple testcase the programmer used to verify his
 ; understanding of the hblank timing?
 Unused_WTF::
-	call SpriteCoordToTilemapAddr ; points hl into the tilemap
+	call SpriteCoordToTilemapAddr
 
 .wait_for_hblank1:
 	ld a, [rSTAT]
@@ -2284,7 +2287,7 @@ jr_000_1ef0:
 	call AddBCD
 	ld de, $c0c4
 	ld hl, $99a5
-	call LazyDisplayThreeByteBCD
+	call LazyUpdateScore
 	xor a
 	ld [hDelayCounter], a
 	pop de
@@ -3008,7 +3011,7 @@ VBlank_HandleLineClearBlink::
 ; and shift every line above it down by one. Finally, the very top line is cleared.
 ; Input: none
 ; Output: none
-; Clobberss all registers
+; Clobbers all registers
 HandleRowShift::
 	ld a, [hDelayCounter]
 	and a
@@ -3233,7 +3236,10 @@ ShiftRow19::
 	ld [$ff00+$d4], a
 	ret
 
-
+; If the game is playing, and the game type is A, update the score on the tilemap.
+; Input:
+;   HL = tilemap pointer
+;   hScoreDirty - if set to zero, nothing will be done
 RenderScore::
 	ld a, [hGameState]
 	assert STATE_GAMEPLAY == 0
@@ -3245,7 +3251,7 @@ RenderScore::
 	ret nz
 
 	ld de, wScore + SCORE_SIZE - 1
-	call LazyDisplayThreeByteBCD ; why no TCO?
+	call LazyUpdateScore ; why no TCO?
 	ret
 
 

@@ -52,8 +52,8 @@ VBlankInterrupt::
 
 	ld hl, vBGMapA + 3 * BG_MAP_WIDTH + 13
 	call RenderScore
-	ld a, $01
-	ld [$ff00+$e0], a
+	ld a, 1
+	ld [hScoreDirty], a
 	ld hl, vBGMapB + 3 * BG_MAP_WIDTH + 13
 	call RenderScore
 	xor a

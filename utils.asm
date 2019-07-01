@@ -83,9 +83,12 @@ Unused_TilemapAddrToSpriteCoord::
 	; ld a, [hCoordConversionLo]
 	; ld e, a
 	; ld a, [hCoordConversionHi]
-	; rept 3
+	; ld b, 3
+	; .shift_loop:
 	; rl e
 	; rlca
+	; dec b
+	; jr nz, .shift_loop
 	; endr
 	; and $1f
 	; add 16
@@ -104,31 +107,33 @@ Unused_TilemapAddrToSpriteCoord::
 	jr nz, .shift_loop
 
 	ld a, e
-	sub $84 ; this feels wrong - in fact, a wrong value here makes it break
+	; A wrong value here breaks this routine. Presumably sprite coordinates worked differently
+	; on the hardware prototype this was tested on. 
+	sub $84
 	and $fe
-	rlca ; or add a, without the carry nastiness
+	rlca ; or add a, for saner behavior on overflow and easier to follow code
 	rlca
 	add 8
 	ld [hCoordConversionY], a
 
 	ld a, [hCoordConversionLo]
 	and $1f
-	rla ; again, carry nastiness
-	rla
+	rla ; Again, change this to add a to avoid having to convince yourself for two minutes that
+	rla ; this won't break due to carry being set (BTW, and imm8 resets carry).
 	rla
 	add 8
 	ld [hCoordConversionX], a
 	ret
 
-LazyDisplayThreeByteBCD:
-	ld a, [$ff00+$e0]
+LazyUpdateScore:
+	ld a, [hScoreDirty]
 	and a
 	ret z
 
 DisplayBCD_ThreeBytes:
-	ld c, $03
+	ld c, 3
 
-; Display a BCD value stored LSB-first. Leading zeroes are shown as spaces. Therefore, the number is
+; Display a BCD value stored LSB-first. Leading zeroes are shown as spaces. Hence, the number is
 ; right-aligned.
 ; Input:
 ;   HL = tilemap pointer (leftmost tile)
@@ -175,7 +180,7 @@ DisplayBCD::
 	jr nz, .loop
 
 	xor a
-	ld [$ff00+$e0], a
+	ld [hScoreDirty], a
 	ret
 
 .found_nonzero_high:

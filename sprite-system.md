@@ -16,7 +16,9 @@ The `wSpriteList` contains 16-byte long entries. Only the first 7 bytes are used
 | 1      | `SPRITE_OFFSET_Y`          | The Y screen coordinate of the anchor                                                                                       |
 | 2      | `SPRITE_OFFSET_X`          | The X screen coordinate of the anchor                                                                                       |
 | 3      | `SPRITE_OFFSET_ID`         | The ID of the sprite, explained later                                                                                       |
-| 4      | `SPRITE_OFFSET_BELOW_BG`   | If set
+| 4      | `SPRITE_OFFSET_BELOW_BG`   | The background priority flag, or-ed with the OAM flags                                                                      |
+| 5      | `SPRITE_OFFSET_FLIP`       | The X/Y flip flags of the sprite. If set, the whole sprite will be mirrored in the relevant axis.                           |
+| 6      | `SPRITE_OFFSET_FLAGS`      | Used for setting any other OAM flags.                                                                                       |
 
 `wSpriteList` is often filled with sprite lists copied from ROM. This is handled by the `LoadSprites`
 and `LoadSingleSprite` routines.
@@ -31,9 +33,9 @@ Each object list is prefixed by a pointer to a dimension descriptor, which maps 
 that follows to the two dimensions of the screen. The list of object IDs can, apart from tileset indices,
 contain three special values:
 
-- `$ff` indicates the end of the list, and makes the routine move on to the next sprite in `wSpriteList`, if any.
-- `$fe` indicates an empty spot, and makes the routine skip an entry in the dimension descriptor.
-- `$fd` indicates that the next actual object ID to follow is to be flipped horizontally.
+ - `$fd` is a prefix used to horizontally flip the next object listed.
+ - `$fe` will discard a single entry from the dimension descriptor.
+ - `$ff` ends the object list.
 
 To illustrate this, let's look at the sprite definition of a T tetromino, or, to be more specific -- one of them.
 Tetrominoes have four sprite descriptors each, one for each possible rotation state. This also applies
@@ -41,7 +43,8 @@ to O, I, Z and S, even though their rotational symmetry creates duplicate descri
 the ingenuity of the person who entered the data, nothing prevents duplicating the pointers in the
 `SpriteDescriptorPointers` list instead of repeating all the data.
 
-At least, all tetrominoes make use of the same dimension descriptor:
+At least the "dimension descriptor" is shared by all tetrominoes. A dimension descriptor describes
+the positions the objects in an object list are mapped to.
 
 ```asm
 SpriteDim4x4::
@@ -63,7 +66,8 @@ SpriteDim4x4::
 	db 24, 24
 ```
 
-This set of coordinate pairs is then mapped to the individual objects making up the tetromino:
+The object list references the dimension descriptor and lists the IDs of the objects that make up
+the sprite. Some values are special, namely:
 
 ```asm
 ; make it readable
@@ -76,3 +80,5 @@ SpriteT1Objects::
 	db $85, $85, _,   _
 	db _,   $85, $ff
 ```
+
+

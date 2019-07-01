@@ -76,7 +76,10 @@ hSendBufferValid EQU $ffce
 hSendBuffer      EQU $ffcf
 hRecvBuffer      EQU $ffd0
 
+; Used by DisplayBCD. The values can overlap because the latter is always cleared at the end of the
+; routine, and the former is local to the subroutine.
 hSeenNonZero EQU $ffe0
+hScoreDirty  EQU $ffe0
 
 hGameState        EQU $ffe1
 hRowToShift       EQU $ffe3
